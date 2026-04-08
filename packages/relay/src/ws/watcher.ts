@@ -3,14 +3,14 @@ import type { WebSocket } from 'ws'
 import {
   ReplayRequestSchema,
   FetchRequestsSchema,
-} from '@snc/tunnel-types'
+} from '@conduit/types'
 import type {
   TunnelError,
   RequestRecords,
   ReplayError,
   IncomingRequest,
   WatcherCount,
-} from '@snc/tunnel-types'
+} from '@conduit/types'
 import type { RelayConfig } from '../config.js'
 import type { StorageAdapter } from '../storage/interface.js'
 import { ConnectionRegistry } from './registry.js'
@@ -39,7 +39,7 @@ export async function watcherWsPlugin(
   const { storage, registry } = opts
 
   app.get<{ Params: { slug: string } }>(
-    '/tunnel/:slug/watch',
+    '/conduit/:slug/watch',
     { websocket: true },
     async (socket: WebSocket, req: FastifyRequest<{ Params: { slug: string } }>) => {
       const { slug } = req.params
@@ -62,7 +62,7 @@ export async function watcherWsPlugin(
           validity === 'expired' ? 'INVALID_TOKEN' : 'AUTH_REQUIRED'
         const message =
           validity === 'expired'
-            ? 'Token expired — run snc token refresh'
+            ? 'Token expired — run conduit token refresh'
             : validity === 'invalid'
               ? 'Invalid token for this slug'
               : 'Slug not found'

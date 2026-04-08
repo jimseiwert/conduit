@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# SNC Tunnel CLI installer — macOS and Linux
-# Usage: curl -fsSL https://get.snc.digital/tunnel | bash
+# Conduit CLI installer — macOS and Linux
+# Usage: curl -fsSL https://get.tunnel.digital/conduit | bash
 
 set -euo pipefail
 
-REPO="snc/tunnel"
-BINARY="snc"
-INSTALL_DIR="${SNC_INSTALL_DIR:-/usr/local/bin}"
+REPO="jimseiwert/conduit"
+BINARY="conduit"
+INSTALL_DIR="${CONDUIT_INSTALL_DIR:-/usr/local/bin}"
 
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
@@ -51,5 +51,5 @@ else
 fi
 
 echo ""
-echo "SNC Tunnel CLI installed successfully!"
-echo "Run: snc --help"
+echo "Conduit CLI installed successfully!"
+echo "Run: conduit --help"

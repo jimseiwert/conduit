@@ -10,7 +10,7 @@ interface HeaderProps {
 export function Header({ url, connected, watcherCount }: HeaderProps) {
   return (
     <Box flexDirection="row" paddingX={1} borderStyle="single" borderBottom={true} borderTop={false} borderLeft={false} borderRight={false}>
-      <Text bold color="cyan">SNC Tunnel</Text>
+      <Text bold color="cyan">Conduit</Text>
       <Text>  </Text>
       <Text color="blue">{url}</Text>
       <Text>  </Text>

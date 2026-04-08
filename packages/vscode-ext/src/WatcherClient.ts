@@ -2,7 +2,7 @@ import * as vscode from 'vscode'
 import * as path from 'path'
 import * as fs from 'fs'
 import * as WebSocket from 'ws'
-import type { RelayOutbound, IncomingRequest, RequestCompleted, RequestRecords } from '@snc/tunnel-types'
+import type { RelayOutbound, IncomingRequest, RequestCompleted, RequestRecords } from '@conduit/types'
 import type { StatusBar } from './StatusBar'
 
 export interface RequestItem {
@@ -40,12 +40,12 @@ export class WatcherClient {
 
   /**
    * Attempt auto-connect on extension activation.
-   * Reads .tunnel slug and TUNNEL_TOKEN; silently aborts if either is missing.
+   * Reads .conduit slug and CONDUIT_TOKEN; silently aborts if either is missing.
    */
   async tryAutoConnect(): Promise<void> {
-    const cfg = this.readTunnelConfig()
+    const cfg = this.readConduitConfig()
     if (!cfg) {
-      // No .tunnel file or token found — stay disconnected silently
+      // No .conduit file or token found — stay disconnected silently
       return
     }
     this.slug = cfg.slug
@@ -56,24 +56,24 @@ export class WatcherClient {
   /**
    * Connect to the relay as a watcher.
    * Reads config + prompts user for any missing values.
-   * Opens WebSocket to {relayUrl}/tunnel/{slug}/watch.
+   * Opens WebSocket to {relayUrl}/conduit/{slug}/watch.
    */
   async connect(): Promise<void> {
     this.intentionalDisconnect = false
 
     // Resolve relay URL from settings
-    const vsConfig = vscode.workspace.getConfiguration('snctunnel')
-    let relayUrl: string = vsConfig.get('relayUrl') ?? 'wss://debug.snc.digital'
+    const vsConfig = vscode.workspace.getConfiguration('conduit')
+    let relayUrl: string = vsConfig.get('relayUrl') ?? 'wss://debug.tunnel.digital'
 
     // Resolve slug
     if (!this.slug) {
-      const cfg = this.readTunnelConfig()
+      const cfg = this.readConduitConfig()
       if (cfg) {
         this.slug = cfg.slug
         this.token = cfg.token
       } else {
         const entered = await vscode.window.showInputBox({
-          prompt: 'Enter tunnel slug (from .tunnel file)',
+          prompt: 'Enter conduit slug (from .conduit file)',
           placeHolder: 'my-project',
         })
         if (!entered) {
@@ -86,7 +86,7 @@ export class WatcherClient {
     // Resolve token
     if (!this.token) {
       const entered = await vscode.window.showInputBox({
-        prompt: 'Enter tunnel token (TUNNEL_TOKEN)',
+        prompt: 'Enter conduit token (CONDUIT_TOKEN)',
         password: true,
       })
       if (!entered) {
@@ -95,7 +95,7 @@ export class WatcherClient {
       this.token = entered
     }
 
-    const watchUrl = `${relayUrl}/tunnel/${this.slug}/watch`
+    const watchUrl = `${relayUrl}/conduit/${this.slug}/watch`
     this.connectedUrl = watchUrl
     this.statusBar.setReconnecting()
     this._openSocket(watchUrl, this.token)
@@ -115,11 +115,11 @@ export class WatcherClient {
 
   /**
    * Open the relay login page in the system browser.
-   * Relay auth flow issues a JWT that the user stores as TUNNEL_TOKEN.
+   * Relay auth flow issues a JWT that the user stores as CONDUIT_TOKEN.
    */
   async login(): Promise<void> {
-    const vsConfig = vscode.workspace.getConfiguration('snctunnel')
-    const relayUrl: string = vsConfig.get('relayUrl') ?? 'wss://debug.snc.digital'
+    const vsConfig = vscode.workspace.getConfiguration('conduit')
+    const relayUrl: string = vsConfig.get('relayUrl') ?? 'wss://debug.tunnel.digital'
 
     // Convert wss:// → https:// for the browser URL
     const httpBase = relayUrl.replace(/^wss?:\/\//, (m) => (m.startsWith('wss') ? 'https://' : 'http://'))
@@ -129,11 +129,11 @@ export class WatcherClient {
 
   /**
    * Send a replay request for the given tree item.
-   * The relay re-issues the stored IncomingRequest to the tunnel owner.
+   * The relay re-issues the stored IncomingRequest to the conduit owner.
    */
   replay(item: RequestItem): void {
     if (!this.ws || this.ws.readyState !== WebSocket.WebSocket.OPEN) {
-      vscode.window.showWarningMessage('SNC Tunnel: Not connected — cannot replay request.')
+      vscode.window.showWarningMessage('Conduit: Not connected — cannot replay request.')
       return
     }
     const msg = JSON.stringify({ type: 'replay', requestId: item.id })
@@ -180,7 +180,7 @@ export class WatcherClient {
 
     ws.on('error', (err: Error) => {
       // Log silently; close event will fire after error and trigger reconnect
-      console.error('[SNC Tunnel] WebSocket error:', err.message)
+      console.error('[Conduit] WebSocket error:', err.message)
     })
   }
 
@@ -275,13 +275,13 @@ export class WatcherClient {
       }
 
       case 'error': {
-        vscode.window.showErrorMessage(`SNC Tunnel relay error [${parsed.code}]: ${parsed.message}`)
+        vscode.window.showErrorMessage(`Conduit relay error [${parsed.code}]: ${parsed.message}`)
         break
       }
 
       case 'replayError': {
         vscode.window.showWarningMessage(
-          `SNC Tunnel: Replay failed for request ${parsed.requestId} — ${parsed.reason}`
+          `Conduit: Replay failed for request ${parsed.requestId} — ${parsed.reason}`
         )
         break
       }
@@ -311,35 +311,35 @@ export class WatcherClient {
   }
 
   /**
-   * Read the .tunnel slug from the workspace config file and the TUNNEL_TOKEN
+   * Read the .conduit slug from the workspace config file and the CONDUIT_TOKEN
    * from the process environment or workspace .env file.
    *
-   * .tunnel file format (tried in order):
+   * .conduit file format (tried in order):
    *   1. JSON: { "slug": "my-project" }
    *   2. Plain text first line: "my-project"
    *
    * Token sources (tried in order):
-   *   1. process.env.TUNNEL_TOKEN
+   *   1. process.env.CONDUIT_TOKEN
    *   2. KEY=VALUE pairs in workspace .env file
    */
-  private readTunnelConfig(): { slug: string; token: string } | null {
+  private readConduitConfig(): { slug: string; token: string } | null {
     const root = vscode.workspace.rootPath
     if (!root) {
       return null
     }
 
-    const vsConfig = vscode.workspace.getConfiguration('snctunnel')
-    const configFile: string = vsConfig.get('configFile') ?? '.tunnel'
-    const tunnelFilePath = path.join(root, configFile)
+    const vsConfig = vscode.workspace.getConfiguration('conduit')
+    const configFile: string = vsConfig.get('configFile') ?? '.conduit'
+    const conduitFilePath = path.join(root, configFile)
 
-    if (!fs.existsSync(tunnelFilePath)) {
+    if (!fs.existsSync(conduitFilePath)) {
       return null
     }
 
-    // Parse slug from .tunnel file
+    // Parse slug from .conduit file
     let slug: string | null = null
     try {
-      const content = fs.readFileSync(tunnelFilePath, 'utf8').trim()
+      const content = fs.readFileSync(conduitFilePath, 'utf8').trim()
       try {
         const json = JSON.parse(content) as { slug?: string }
         if (json.slug && typeof json.slug === 'string') {
@@ -361,7 +361,7 @@ export class WatcherClient {
     }
 
     // Resolve token: process.env first, then workspace .env file
-    let token: string | null = process.env['TUNNEL_TOKEN'] ?? null
+    let token: string | null = process.env['CONDUIT_TOKEN'] ?? null
 
     if (!token) {
       const envPath = path.join(root, '.env')
@@ -376,7 +376,7 @@ export class WatcherClient {
             const eqIdx = trimmed.indexOf('=')
             const key = trimmed.slice(0, eqIdx).trim()
             const val = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, '')
-            if (key === 'TUNNEL_TOKEN') {
+            if (key === 'CONDUIT_TOKEN') {
               token = val
               break
             }

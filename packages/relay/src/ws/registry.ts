@@ -10,7 +10,7 @@ interface SlugConnection {
 }
 
 /**
- * In-memory registry of active WebSocket connections per tunnel slug.
+ * In-memory registry of active WebSocket connections per conduit slug.
  *
  * Owner lifecycle:
  *   1. connect  → setOwner(slug, ws)          — cancels any active grace timer

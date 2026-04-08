@@ -1,3 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-  <path d="M4 12h16M4 6h16M4 18h16"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+  <!-- Outer pipe ring -->
+  <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
+  <!-- Inner pipe wall -->
+  <circle cx="12" cy="12" r="6" stroke="currentColor" stroke-width="1.5"/>
+  <!-- Data pulse arrow through center -->
+  <path d="M8 12h8M13 9l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

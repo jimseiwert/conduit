@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   relay:
-    image: ghcr.io/snc/tunnel-relay:latest
+    image: ghcr.io/jimseiwert/conduit-relay:latest
     # Or build locally:
     # build:
     #   context: .
@@ -11,10 +11,10 @@ services:
       - "3000:3000"
     environment:
       PORT: "3000"
-      TUNNEL_JWT_SECRET: ${TUNNEL_JWT_SECRET:?TUNNEL_JWT_SECRET is required}
+      CONDUIT_JWT_SECRET: ${CONDUIT_JWT_SECRET:?CONDUIT_JWT_SECRET is required}
       RELAY_REGISTRATION_TOKEN: ${RELAY_REGISTRATION_TOKEN:-}
       STORAGE_ADAPTER: ${STORAGE_ADAPTER:-sqlite}
-      SQLITE_PATH: /data/tunnel.db
+      SQLITE_PATH: /data/conduit.db
       RING_BUFFER_SIZE: ${RING_BUFFER_SIZE:-1000}
       MAX_BODY_BYTES: ${MAX_BODY_BYTES:-1048576}
       FORWARD_TIMEOUT_MS: ${FORWARD_TIMEOUT_MS:-30000}

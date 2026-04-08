@@ -7,8 +7,8 @@ import type {
   WatcherCount,
   RequestRecords,
   ForwardResponse,
-} from '@snc/tunnel-types'
-import { decodeStreamFrame, STREAM_FRAME_TYPE, encodeStreamFrame } from '@snc/tunnel-types'
+} from '@conduit/types'
+import { decodeStreamFrame, STREAM_FRAME_TYPE, encodeStreamFrame } from '@conduit/types'
 import { writeToken } from '../config.js'
 import { forwardRequest } from './forwarder.js'
 
@@ -27,7 +27,7 @@ export interface ClientEvents {
 const MAX_RECONNECT_DELAY_MS = 30_000
 const RENEWAL_THRESHOLD_DAYS = 7
 
-export class TunnelClient {
+export class ConduitClient {
   private ws: WebSocket | null = null
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private reconnectDelay = 1000
@@ -276,7 +276,7 @@ export class TunnelClient {
     if (!this.currentToken) return
 
     try {
-      const renewUrl = `${this.relayUrl.replace(/^ws/, 'http')}/tunnel/${this.slug}/renew`
+      const renewUrl = `${this.relayUrl.replace(/^ws/, 'http')}/conduit/${this.slug}/renew`
       const response = await fetch(renewUrl, {
         method: 'POST',
         headers: {

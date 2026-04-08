@@ -3,19 +3,19 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "snc-tunnel",
+      "name": "tunnel",
       "devDependencies": {
         "typescript": "^5.4.5",
       },
     },
     "packages/cli": {
-      "name": "@snc/tunnel-cli",
+      "name": "@tunnel/cli",
       "version": "1.0.0",
       "bin": {
-        "snc": "./dist/index.js",
+        "tunnel": "./dist/index.js",
       },
       "dependencies": {
-        "@snc/tunnel-types": "*",
+        "@tunnel/types": "*",
         "@types/react": "^18.3.12",
         "dotenv": "^16.4.7",
         "dotenv-expand": "^11.0.6",
@@ -34,12 +34,12 @@
       },
     },
     "packages/relay": {
-      "name": "@snc/tunnel-relay",
+      "name": "@tunnel/relay",
       "version": "1.0.0",
       "dependencies": {
         "@azure/msal-node": "^2.16.2",
         "@fastify/websocket": "^11.2.0",
-        "@snc/tunnel-types": "*",
+        "@tunnel/types": "*",
         "better-sqlite3": "^11.9.1",
         "fastify": "^5.2.1",
         "jsonwebtoken": "^9.0.2",
@@ -57,7 +57,7 @@
       },
     },
     "packages/types": {
-      "name": "@snc/tunnel-types",
+      "name": "@tunnel/types",
       "version": "1.0.0",
       "dependencies": {
         "zod": "^4.3.6",
@@ -67,10 +67,10 @@
       },
     },
     "packages/vscode-ext": {
-      "name": "snc-tunnel",
+      "name": "@tunnel/vscode-ext",
       "version": "1.0.0",
       "dependencies": {
-        "@snc/tunnel-types": "*",
+        "@tunnel/types": "*",
         "ws": "^8.18.0",
       },
       "devDependencies": {
@@ -165,11 +165,11 @@
 
     "@sindresorhus/merge-streams": ["@sindresorhus/merge-streams@2.3.0", "", {}, "sha512-LtoMMhxAlorcGhmFYI+LhPgbPZCkgP6ra1YL604EeF6U98pLlQ3iWIGMdWSC+vWmPBWBNgmDBAhnAobLROJmwg=="],
 
-    "@snc/tunnel-cli": ["@snc/tunnel-cli@workspace:packages/cli"],
+    "@tunnel/cli": ["@tunnel/cli@workspace:packages/cli"],
 
-    "@snc/tunnel-relay": ["@snc/tunnel-relay@workspace:packages/relay"],
+    "@tunnel/relay": ["@tunnel/relay@workspace:packages/relay"],
 
-    "@snc/tunnel-types": ["@snc/tunnel-types@workspace:packages/types"],
+    "@tunnel/types": ["@tunnel/types@workspace:packages/types"],
 
     "@textlint/ast-node-types": ["@textlint/ast-node-types@15.5.2", "", {}, "sha512-fCaOxoup5LIyBEo7R1oYWE7V4bSX0KQeHh66twon9e9usaLE3ijgF8QjYsR6joCssdeCHVd0wHm7ppsEyTr6vg=="],
 
@@ -763,7 +763,7 @@
 
     "slice-ansi": ["slice-ansi@7.1.2", "", { "dependencies": { "ansi-styles": "^6.2.1", "is-fullwidth-code-point": "^5.0.0" } }, "sha512-iOBWFgUX7caIZiuutICxVgX1SdxwAVFFKwt1EvMYYec/NWO5meOJ6K5uQxhrYBdQJne4KxiqZc+KptFOWFSI9w=="],
 
-    "snc-tunnel": ["snc-tunnel@workspace:packages/vscode-ext"],
+    "@tunnel/vscode-ext": ["@tunnel/vscode-ext@workspace:packages/vscode-ext"],
 
     "sonic-boom": ["sonic-boom@4.2.1", "", { "dependencies": { "atomic-sleep": "^1.0.0" } }, "sha512-w6AxtubXa2wTXAUsZMMWERrsIRAdrK0Sc+FUytWvYAhBJLyuI4llrMIC1DtlNSdI99EI86KZum2MMq3EAZlF9Q=="],
 
@@ -885,7 +885,7 @@
 
     "@azure/msal-browser/@azure/msal-common": ["@azure/msal-common@16.4.1", "", {}, "sha512-Bl8f+w37xkXsYh7QRkAKCFGYtWMYuOVO7Lv+BxILrvGz3HbIEF22Pt0ugyj0QPOl6NLrHcnNUQ9yeew98P/5iw=="],
 
-    "@snc/tunnel-types/@types/node": ["@types/node@25.5.2", "", { "dependencies": { "undici-types": "~7.18.0" } }, "sha512-tO4ZIRKNC+MDWV4qKVZe3Ql/woTnmHDr5JD8UI5hn2pwBrHEwOEMZK7WlNb5RKB6EoJ02gwmQS9OrjuFnZYdpg=="],
+    "@tunnel/types/@types/node": ["@types/node@25.5.2", "", { "dependencies": { "undici-types": "~7.18.0" } }, "sha512-tO4ZIRKNC+MDWV4qKVZe3Ql/woTnmHDr5JD8UI5hn2pwBrHEwOEMZK7WlNb5RKB6EoJ02gwmQS9OrjuFnZYdpg=="],
 
     "@textlint/linter-formatter/chalk": ["chalk@4.1.2", "", { "dependencies": { "ansi-styles": "^4.1.0", "supports-color": "^7.1.0" } }, "sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA=="],
 
@@ -935,7 +935,7 @@
 
     "@azure/identity/@azure/msal-node/@azure/msal-common": ["@azure/msal-common@16.4.1", "", {}, "sha512-Bl8f+w37xkXsYh7QRkAKCFGYtWMYuOVO7Lv+BxILrvGz3HbIEF22Pt0ugyj0QPOl6NLrHcnNUQ9yeew98P/5iw=="],
 
-    "@snc/tunnel-types/@types/node/undici-types": ["undici-types@7.18.2", "", {}, "sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w=="],
+    "@tunnel/types/@types/node/undici-types": ["undici-types@7.18.2", "", {}, "sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w=="],
 
     "@textlint/linter-formatter/chalk/ansi-styles": ["ansi-styles@4.3.0", "", { "dependencies": { "color-convert": "^2.0.1" } }, "sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg=="],
 

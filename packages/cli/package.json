@@ -1,14 +1,14 @@
 {
-  "name": "@snc/tunnel-cli",
+  "name": "@conduit/cli",
   "version": "1.0.0",
   "private": true,
   "type": "module",
   "bin": {
-    "snc": "./dist/index.js"
+    "conduit": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc --build",
-    "build:binary": "bun build --compile src/index.ts --outfile dist/snc --target bun",
+    "build:binary": "bun build --compile src/index.ts --outfile dist/conduit --target bun --external react-devtools-core",
     "dev": "bun --watch src/index.ts",
     "test": "bun test"
   },
@@ -21,7 +21,7 @@
     "ws": "^8.18.0",
     "dotenv": "^16.4.7",
     "dotenv-expand": "^11.0.6",
-    "@snc/tunnel-types": "*"
+    "@conduit/types": "*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

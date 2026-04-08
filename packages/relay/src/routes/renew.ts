@@ -18,7 +18,7 @@ interface RenewParams {
 }
 
 /**
- * POST /tunnel/:slug/renew
+ * POST /conduit/:slug/renew
  *
  * Renews the slug token using the existing token as proof of ownership.
  * The old token's signature is verified and its slug claim must match the
@@ -31,7 +31,7 @@ export async function renewRoutes(
   const { config, storage } = opts
 
   app.post<{ Params: RenewParams }>(
-    '/tunnel/:slug/renew',
+    '/conduit/:slug/renew',
     async (req: FastifyRequest<{ Params: RenewParams }>, reply: FastifyReply) => {
       const { slug } = req.params
 

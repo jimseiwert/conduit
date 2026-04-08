@@ -1,9 +1,9 @@
 {
-  "name": "snc-tunnel",
-  "displayName": "SNC Tunnel",
-  "description": "Self-hosted tunnel debugging for VS Code",
+  "name": "conduit-relay",
+  "displayName": "Conduit Relay",
+  "description": "Self-hosted conduit debugging for VS Code",
   "version": "1.0.0",
-  "publisher": "snc",
+  "publisher": "jimseiwert",
   "engines": { "vscode": "^1.85.0" },
   "categories": ["Debuggers", "Other"],
   "activationEvents": ["onStartupFinished"],
@@ -12,44 +12,44 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "snc-tunnel",
-          "title": "SNC Tunnel",
+          "id": "conduit",
+          "title": "Conduit",
           "icon": "media/icon.svg"
         }
       ]
     },
     "views": {
-      "snc-tunnel": [
+      "conduit": [
         {
-          "id": "snc-tunnel.requests",
+          "id": "conduit.requests",
           "name": "Requests"
         }
       ]
     },
     "commands": [
-      { "command": "snc-tunnel.connect", "title": "Connect Tunnel" },
-      { "command": "snc-tunnel.disconnect", "title": "Disconnect Tunnel" },
-      { "command": "snc-tunnel.login", "title": "Login (OIDC)" },
-      { "command": "snc-tunnel.replay", "title": "Replay Request" },
-      { "command": "snc-tunnel.refresh", "title": "Refresh" }
+      { "command": "conduit.connect", "title": "Connect Conduit" },
+      { "command": "conduit.disconnect", "title": "Disconnect Conduit" },
+      { "command": "conduit.login", "title": "Login (OIDC)" },
+      { "command": "conduit.replay", "title": "Replay Request" },
+      { "command": "conduit.refresh", "title": "Refresh" }
     ],
     "configuration": {
-      "title": "SNC Tunnel",
+      "title": "Conduit",
       "properties": {
-        "snctunnel.configFile": {
+        "conduit.configFile": {
           "type": "string",
-          "default": ".tunnel",
-          "description": "Path to tunnel config file"
+          "default": ".conduit",
+          "description": "Path to conduit config file"
         },
-        "snctunnel.relayUrl": {
+        "conduit.relayUrl": {
           "type": "string",
-          "default": "wss://debug.snc.digital",
+          "default": "wss://debug.tunnel.digital",
           "description": "Relay WebSocket URL"
         },
-        "snctunnel.autoConnect": {
+        "conduit.autoConnect": {
           "type": "boolean",
           "default": true,
-          "description": "Auto-connect when a .tunnel config file is found"
+          "description": "Auto-connect when a .conduit config file is found"
         }
       }
     }
@@ -61,7 +61,7 @@
   },
   "dependencies": {
     "ws": "^8.18.0",
-    "@snc/tunnel-types": "*"
+    "@conduit/types": "*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

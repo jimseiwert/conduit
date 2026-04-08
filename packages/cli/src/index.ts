@@ -1,29 +1,29 @@
 #!/usr/bin/env node
 import { ConfigMismatchError } from './config.js'
 
-const VERSION = '1.0.0'
+const VERSION = process.env.VERSION ?? '1.0.0'
 
 function printHelp(): void {
   console.log(`
-snc - SNC Tunnel CLI
+conduit - Conduit CLI
 
 USAGE
-  snc <command> [options]
+  conduit <command> [options]
 
 COMMANDS
-  start               Start the tunnel and open the TUI dashboard
+  start               Start the conduit and open the TUI dashboard
   auth                Authenticate with the relay server
   diff <id1> <id2>    Show diff between two recorded requests
   history             Show recent request history
   replay <id>         Replay a previously recorded request
-  token refresh       Refresh the tunnel token
+  token refresh       Refresh the conduit token
 
 OPTIONS (start)
-  --slug <slug>       Tunnel slug (subdomain)
+  --slug <slug>       Conduit slug (subdomain)
   --port <port>       Local port to forward to (default: 3000)
-  --http              Enable HTTP (not just HTTPS) on the tunnel
-  --config <path>     Path to .tunnel config file
-  --relay <url>       Relay WebSocket URL (default: wss://debug.snc.digital)
+  --http              Enable HTTP (not just HTTPS) on the conduit
+  --config <path>     Path to .conduit config file
+  --relay <url>       Relay WebSocket URL (default: wss://debug.tunnel.digital)
 
 OPTIONS (auth)
   --relay <url>       Relay base URL
@@ -39,12 +39,12 @@ GLOBAL
   --version           Show version
 
 EXAMPLES
-  snc start --slug myapp --port 3000
-  snc auth
-  snc history --limit 20
-  snc replay 550e8400-e29b-41d4-a716-446655440000
-  snc diff <id1> <id2>
-  snc token refresh
+  conduit start --slug myapp --port 3000
+  conduit auth
+  conduit history --limit 20
+  conduit replay 550e8400-e29b-41d4-a716-446655440000
+  conduit diff <id1> <id2>
+  conduit token refresh
 `.trim())
 }
 
@@ -92,7 +92,7 @@ async function main(): Promise<void> {
   }
 
   if (flags['version'] || command === 'version') {
-    console.log(`snc v${VERSION}`)
+    console.log(`conduit v${VERSION}`)
     return
   }
 
@@ -122,7 +122,7 @@ async function main(): Promise<void> {
         const id1 = positional[0]
         const id2 = positional[1]
         if (!id1 || !id2) {
-          console.error('Usage: snc diff <id1> <id2>')
+          console.error('Usage: conduit diff <id1> <id2>')
           process.exit(1)
         }
         const { cmdDiff } = await import('./commands/diff.js')
@@ -144,7 +144,7 @@ async function main(): Promise<void> {
       case 'replay': {
         const id = positional[0]
         if (!id) {
-          console.error('Usage: snc replay <request-id>')
+          console.error('Usage: conduit replay <request-id>')
           process.exit(1)
         }
         const { cmdReplay } = await import('./commands/replay.js')
@@ -163,7 +163,7 @@ async function main(): Promise<void> {
           })
         } else {
           console.error(`Unknown token subcommand: ${sub ?? '(none)'}`)
-          console.error('Usage: snc token refresh')
+          console.error('Usage: conduit token refresh')
           process.exit(1)
         }
         break
@@ -171,7 +171,7 @@ async function main(): Promise<void> {
 
       default: {
         console.error(`Unknown command: ${command}`)
-        console.error('Run `snc --help` for usage.')
+        console.error('Run `conduit --help` for usage.')
         process.exit(1)
       }
     }

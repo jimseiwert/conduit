@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "tunnel-relay.fullname" . }}
+  name: {{ include "conduit-relay.fullname" . }}
   labels:
-    {{- include "tunnel-relay.labels" . | nindent 4 }}
+    {{- include "conduit-relay.labels" . | nindent 4 }}
 spec:
   # IMPORTANT: Do NOT increase replicas. In-memory WS registry is not distributed.
   # See values.yaml for explanation. Ignored even if replicaCount is changed.
   replicas: 1
   selector:
     matchLabels:
-      {{- include "tunnel-relay.selectorLabels" . | nindent 6 }}
+      {{- include "conduit-relay.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "tunnel-relay.selectorLabels" . | nindent 8 }}
+        {{- include "conduit-relay.selectorLabels" . | nindent 8 }}
     spec:
       containers:
         - name: relay
@@ -51,5 +51,5 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: {{ include "tunnel-relay.fullname" . }}-data
+            claimName: {{ include "conduit-relay.fullname" . }}-data
       {{- end }}

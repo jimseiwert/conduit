@@ -21,9 +21,9 @@ export interface RelayConfig {
 }
 
 export function loadConfig(): RelayConfig {
-  const jwtSecret = process.env['TUNNEL_JWT_SECRET']
+  const jwtSecret = process.env['CONDUIT_JWT_SECRET']
   if (!jwtSecret) {
-    throw new Error('TUNNEL_JWT_SECRET environment variable is required')
+    throw new Error('CONDUIT_JWT_SECRET environment variable is required')
   }
 
   const storageAdapter = (process.env['STORAGE_ADAPTER'] ?? 'memory') as RelayConfig['storageAdapter']

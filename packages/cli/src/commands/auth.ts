@@ -3,7 +3,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import * as child_process from 'node:child_process'
 
-const DEFAULT_RELAY = 'https://debug.snc.digital'
+const DEFAULT_RELAY = 'https://debug.tunnel.digital'
 
 /**
  * Opens a URL in the system default browser.
@@ -22,12 +22,12 @@ function openBrowser(url: string): void {
 }
 
 /**
- * Writes TUNNEL_USER_TOKEN to the .env file in cwd.
+ * Writes CONDUIT_USER_TOKEN to the .env file in cwd.
  * Creates if not present, updates the existing line if found.
  */
 function writeUserToken(cwd: string, token: string): void {
   const envPath = path.join(cwd, '.env')
-  const newLine = `TUNNEL_USER_TOKEN=${token}`
+  const newLine = `CONDUIT_USER_TOKEN=${token}`
 
   if (!fs.existsSync(envPath)) {
     fs.writeFileSync(envPath, newLine + '\n', 'utf8')
@@ -36,7 +36,7 @@ function writeUserToken(cwd: string, token: string): void {
 
   const content = fs.readFileSync(envPath, 'utf8')
   const lines = content.split('\n')
-  const idx = lines.findIndex((l) => l.startsWith('TUNNEL_USER_TOKEN='))
+  const idx = lines.findIndex((l) => l.startsWith('CONDUIT_USER_TOKEN='))
 
   if (idx >= 0) {
     lines[idx] = newLine
@@ -104,10 +104,10 @@ function waitForCallbackToken(port: number): Promise<string> {
  * 1. GET {relay}/auth/login?clientType=cli&callbackUrl=... to get browser URL
  * 2. Open browser
  * 3. Wait for OAuth callback with token
- * 4. Persist TUNNEL_USER_TOKEN to .env
+ * 4. Persist CONDUIT_USER_TOKEN to .env
  */
 export async function cmdAuth(args: { relay?: string }) {
-  const relayBase = (args.relay ?? process.env['TUNNEL_RELAY_URL'] ?? DEFAULT_RELAY)
+  const relayBase = (args.relay ?? process.env['CONDUIT_RELAY_URL'] ?? DEFAULT_RELAY)
     .replace(/^wss?:\/\//, 'https://')
     .replace(/\/$/, '')
 

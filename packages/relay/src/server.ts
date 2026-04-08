@@ -6,7 +6,7 @@ import { ConnectionRegistry } from './ws/registry.js'
 import { PendingRequests } from './ws/pending.js'
 import { ownerWsPlugin } from './ws/owner.js'
 import { watcherWsPlugin } from './ws/watcher.js'
-import { tunnelRoutes } from './routes/tunnel.js'
+import { conduitRoutes } from './routes/conduit.js'
 import { renewRoutes } from './routes/renew.js'
 import { authRoutes } from './routes/auth.js'
 
@@ -39,7 +39,7 @@ export async function createServer(
   await app.register(watcherWsPlugin, { config, storage, registry })
 
   // HTTP routes
-  await app.register(tunnelRoutes, { config, storage, registry, pending })
+  await app.register(conduitRoutes, { config, storage, registry, pending })
   await app.register(renewRoutes, { config, storage })
   await app.register(authRoutes, { config })
 

@@ -1,11 +1,11 @@
 import React from 'react'
 import { render } from 'ink'
 import jwt from 'jsonwebtoken'
-import { loadConfig, writeTunnelConfig, writeToken, ConfigMismatchError } from '../config.js'
-import { TunnelClient } from '../ws/client.js'
+import { loadConfig, writeConduitConfig, writeToken, ConfigMismatchError } from '../config.js'
+import { ConduitClient } from '../ws/client.js'
 import { App } from '../ui/App.js'
 
-const DEFAULT_RELAY = 'wss://debug.snc.digital'
+const DEFAULT_RELAY = 'wss://debug.tunnel.digital'
 
 export async function cmdStart(args: {
   port?: number
@@ -15,7 +15,7 @@ export async function cmdStart(args: {
   relay?: string
 }) {
   const cwd = process.cwd()
-  const relayUrl = args.relay ?? process.env['TUNNEL_RELAY_URL'] ?? DEFAULT_RELAY
+  const relayUrl = args.relay ?? process.env['CONDUIT_RELAY_URL'] ?? DEFAULT_RELAY
 
   let loadedConfig: ReturnType<typeof loadConfig> | null = null
 
@@ -38,14 +38,14 @@ export async function cmdStart(args: {
       return
     }
 
-    console.error('No .tunnel config found. Run `snc start --slug <your-slug>` to register.')
+    console.error('No .conduit config found. Run `conduit start --slug <your-slug>` to register.')
     process.exit(1)
   }
 
   const config = loadedConfig!
-  const slug = args.slug ?? config.tunnel.slug
-  const port = args.port ?? config.tunnel.port
-  const httpEnabled = args.http ?? config.tunnel.httpEnabled
+  const slug = args.slug ?? config.conduit.slug
+  const port = args.port ?? config.conduit.port
+  const httpEnabled = args.http ?? config.conduit.httpEnabled
 
   // Check token expiry
   if (config.token) {
@@ -54,7 +54,7 @@ export async function cmdStart(args: {
       if (decoded && typeof decoded['exp'] === 'number') {
         const nowSec = Date.now() / 1000
         if (decoded['exp'] < nowSec) {
-          console.error('Token expired. Run `snc token refresh`')
+          console.error('Token expired. Run `conduit token refresh`')
           process.exit(1)
         }
       }
@@ -79,12 +79,12 @@ export async function cmdStart(args: {
     onDisconnect() {},
   }
 
-  const client = new TunnelClient(
+  const client = new ConduitClient(
     relayUrl,
     slug,
     config.token,
     {
-      registrationToken: process.env['TUNNEL_REGISTRATION_TOKEN'],
+      registrationToken: process.env['CONDUIT_REGISTRATION_TOKEN'],
       httpEnabled,
       port,
       cwd,
@@ -115,7 +115,7 @@ async function startWithRegistration(opts: {
   configFile?: string
 }) {
   const { slug, port, httpEnabled, relayUrl, cwd, configFile } = opts
-  const configPath = configFile ?? `${cwd}/.tunnel`
+  const configPath = configFile ?? `${cwd}/.conduit`
 
   let registeredUrl = `${relayUrl.replace(/^wss?:\/\//, 'https://')}/${slug}`
 
@@ -123,7 +123,7 @@ async function startWithRegistration(opts: {
     onConnected(_slug: string, token: string, url: string) {
       registeredUrl = url
       // Persist config and token on first registration
-      writeTunnelConfig(configPath, { slug, port, httpEnabled })
+      writeConduitConfig(configPath, { slug, port, httpEnabled })
       writeToken(cwd, token)
     },
     onRequest() {},
@@ -138,12 +138,12 @@ async function startWithRegistration(opts: {
     onDisconnect() {},
   }
 
-  const client = new TunnelClient(
+  const client = new ConduitClient(
     relayUrl,
     slug,
     null, // no token yet — first registration
     {
-      registrationToken: process.env['TUNNEL_REGISTRATION_TOKEN'],
+      registrationToken: process.env['CONDUIT_REGISTRATION_TOKEN'],
       httpEnabled,
       port,
       cwd,

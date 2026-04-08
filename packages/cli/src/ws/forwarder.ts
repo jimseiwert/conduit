@@ -1,4 +1,4 @@
-import type { IncomingRequest, ForwardResponse } from '@snc/tunnel-types'
+import type { IncomingRequest, ForwardResponse } from '@conduit/types'
 
 const DEFAULT_TIMEOUT_MS = 30_000
 const DEFAULT_MAX_BODY_BYTES = 10 * 1024 * 1024 // 10 MB

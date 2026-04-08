@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Box, Text, useInput } from 'ink'
-import type { IncomingRequest, RequestCompleted, RequestRecord } from '@snc/tunnel-types'
+import type { IncomingRequest, RequestCompleted, RequestRecord } from '@conduit/types'
 import { DiffView } from './DiffView.js'
 
 interface InspectorProps {

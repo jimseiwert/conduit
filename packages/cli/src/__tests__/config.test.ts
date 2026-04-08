@@ -5,19 +5,19 @@ import * as os from 'node:os'
 import jwt from 'jsonwebtoken'
 import {
   loadDotenv,
-  readTunnelConfig,
-  writeTunnelConfig,
+  readConduitConfig,
+  writeConduitConfig,
   writeToken,
   validateTokenSlugMatch,
   loadConfig,
   ConfigMismatchError,
-  type TunnelConfig,
+  type ConduitConfig,
 } from '../config.js'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function makeTmpDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'snc-test-'))
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'conduit-test-'))
 }
 
 function makeToken(slug: string, secret = 'test-secret', expiresIn = '90d'): string {
@@ -51,7 +51,7 @@ describe('validateTokenSlugMatch', () => {
   })
 })
 
-describe('readTunnelConfig', () => {
+describe('readConduitConfig', () => {
   let tmpDir: string
 
   beforeEach(() => {
@@ -62,43 +62,43 @@ describe('readTunnelConfig', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true })
   })
 
-  it('reads a valid .tunnel config file', () => {
-    const configPath = path.join(tmpDir, '.tunnel')
-    const config: TunnelConfig = { slug: 'myapp', port: 3000, httpEnabled: false }
+  it('reads a valid .conduit config file', () => {
+    const configPath = path.join(tmpDir, '.conduit')
+    const config: ConduitConfig = { slug: 'myapp', port: 3000, httpEnabled: false }
     fs.writeFileSync(configPath, JSON.stringify(config), 'utf8')
 
-    const loaded = readTunnelConfig(configPath)
+    const loaded = readConduitConfig(configPath)
     expect(loaded.slug).toBe('myapp')
     expect(loaded.port).toBe(3000)
     expect(loaded.httpEnabled).toBe(false)
   })
 
   it('throws when config file does not exist', () => {
-    expect(() => readTunnelConfig(path.join(tmpDir, '.tunnel'))).toThrow(/not found/)
+    expect(() => readConduitConfig(path.join(tmpDir, '.conduit'))).toThrow(/not found/)
   })
 
   it('throws on invalid JSON', () => {
-    const configPath = path.join(tmpDir, '.tunnel')
+    const configPath = path.join(tmpDir, '.conduit')
     fs.writeFileSync(configPath, '{ invalid json }', 'utf8')
-    expect(() => readTunnelConfig(configPath)).toThrow(/Invalid JSON/)
+    expect(() => readConduitConfig(configPath)).toThrow(/Invalid JSON/)
   })
 
   it('throws when required fields are missing', () => {
-    const configPath = path.join(tmpDir, '.tunnel')
+    const configPath = path.join(tmpDir, '.conduit')
     fs.writeFileSync(configPath, JSON.stringify({ slug: 'myapp' }), 'utf8')
-    expect(() => readTunnelConfig(configPath)).toThrow(/Invalid config/)
+    expect(() => readConduitConfig(configPath)).toThrow(/Invalid config/)
   })
 })
 
-describe('writeTunnelConfig', () => {
+describe('writeConduitConfig', () => {
   let tmpDir: string
 
   beforeEach(() => { tmpDir = makeTmpDir() })
   afterEach(() => { fs.rmSync(tmpDir, { recursive: true, force: true }) })
 
-  it('creates a .tunnel file with correct content', () => {
-    const configPath = path.join(tmpDir, '.tunnel')
-    writeTunnelConfig(configPath, { slug: 'myapp', port: 4000, httpEnabled: true })
+  it('creates a .conduit file with correct content', () => {
+    const configPath = path.join(tmpDir, '.conduit')
+    writeConduitConfig(configPath, { slug: 'myapp', port: 4000, httpEnabled: true })
 
     const raw = fs.readFileSync(configPath, 'utf8')
     const parsed = JSON.parse(raw)
@@ -117,23 +117,23 @@ describe('writeToken', () => {
   it('creates .env if it does not exist', () => {
     writeToken(tmpDir, 'my-token')
     const content = fs.readFileSync(path.join(tmpDir, '.env'), 'utf8')
-    expect(content).toContain('TUNNEL_TOKEN=my-token')
+    expect(content).toContain('CONDUIT_TOKEN=my-token')
   })
 
-  it('updates existing TUNNEL_TOKEN line', () => {
-    writeEnvFile(tmpDir, '.env', 'TUNNEL_TOKEN=old-token\nOTHER=value\n')
+  it('updates existing CONDUIT_TOKEN line', () => {
+    writeEnvFile(tmpDir, '.env', 'CONDUIT_TOKEN=old-token\nOTHER=value\n')
     writeToken(tmpDir, 'new-token')
     const content = fs.readFileSync(path.join(tmpDir, '.env'), 'utf8')
-    expect(content).toContain('TUNNEL_TOKEN=new-token')
+    expect(content).toContain('CONDUIT_TOKEN=new-token')
     expect(content).not.toContain('old-token')
     expect(content).toContain('OTHER=value')
   })
 
-  it('appends TUNNEL_TOKEN when other vars exist but no token line', () => {
+  it('appends CONDUIT_TOKEN when other vars exist but no token line', () => {
     writeEnvFile(tmpDir, '.env', 'OTHER=value\n')
     writeToken(tmpDir, 'appended-token')
     const content = fs.readFileSync(path.join(tmpDir, '.env'), 'utf8')
-    expect(content).toContain('TUNNEL_TOKEN=appended-token')
+    expect(content).toContain('CONDUIT_TOKEN=appended-token')
     expect(content).toContain('OTHER=value')
   })
 })
@@ -145,11 +145,11 @@ describe('loadDotenv', () => {
   beforeEach(() => {
     tmpDir = makeTmpDir()
     savedEnv = {
-      TUNNEL_TOKEN: process.env['TUNNEL_TOKEN'],
+      CONDUIT_TOKEN: process.env['CONDUIT_TOKEN'],
       TEST_VAR: process.env['TEST_VAR'],
       LOCAL_VAR: process.env['LOCAL_VAR'],
     }
-    delete process.env['TUNNEL_TOKEN']
+    delete process.env['CONDUIT_TOKEN']
     delete process.env['TEST_VAR']
     delete process.env['LOCAL_VAR']
   })
@@ -188,13 +188,13 @@ describe('loadConfig', () => {
   beforeEach(() => {
     tmpDir = makeTmpDir()
     savedEnv = {
-      TUNNEL_TOKEN: process.env['TUNNEL_TOKEN'],
-      TUNNEL_USER_TOKEN: process.env['TUNNEL_USER_TOKEN'],
-      TUNNEL_CONFIG_FILE: process.env['TUNNEL_CONFIG_FILE'],
+      CONDUIT_TOKEN: process.env['CONDUIT_TOKEN'],
+      CONDUIT_USER_TOKEN: process.env['CONDUIT_USER_TOKEN'],
+      CONDUIT_CONFIG_FILE: process.env['CONDUIT_CONFIG_FILE'],
     }
-    delete process.env['TUNNEL_TOKEN']
-    delete process.env['TUNNEL_USER_TOKEN']
-    delete process.env['TUNNEL_CONFIG_FILE']
+    delete process.env['CONDUIT_TOKEN']
+    delete process.env['CONDUIT_USER_TOKEN']
+    delete process.env['CONDUIT_CONFIG_FILE']
   })
 
   afterEach(() => {
@@ -205,70 +205,70 @@ describe('loadConfig', () => {
     }
   })
 
-  it('loads config and token from .tunnel + .env', () => {
-    const configPath = path.join(tmpDir, '.tunnel')
-    writeTunnelConfig(configPath, { slug: 'myapp', port: 3000, httpEnabled: false })
+  it('loads config and token from .conduit + .env', () => {
+    const configPath = path.join(tmpDir, '.conduit')
+    writeConduitConfig(configPath, { slug: 'myapp', port: 3000, httpEnabled: false })
 
     const token = makeToken('myapp')
-    writeEnvFile(tmpDir, '.env', `TUNNEL_TOKEN=${token}\n`)
+    writeEnvFile(tmpDir, '.env', `CONDUIT_TOKEN=${token}\n`)
 
     const cfg = loadConfig({ configFile: configPath, cwd: tmpDir })
-    expect(cfg.tunnel.slug).toBe('myapp')
+    expect(cfg.conduit.slug).toBe('myapp')
     expect(cfg.token).toBe(token)
   })
 
-  it('TUNNEL_TOKEN from .env takes precedence — token is loaded from env file', () => {
-    const configPath = path.join(tmpDir, '.tunnel')
-    writeTunnelConfig(configPath, { slug: 'myapp', port: 3000, httpEnabled: false })
+  it('CONDUIT_TOKEN from .env takes precedence — token is loaded from env file', () => {
+    const configPath = path.join(tmpDir, '.conduit')
+    writeConduitConfig(configPath, { slug: 'myapp', port: 3000, httpEnabled: false })
 
     // Set a different token in process.env (simulating it not being in .env)
     // and a token in .env that matches
     const token = makeToken('myapp')
-    writeEnvFile(tmpDir, '.env', `TUNNEL_TOKEN=${token}\n`)
+    writeEnvFile(tmpDir, '.env', `CONDUIT_TOKEN=${token}\n`)
 
     const cfg = loadConfig({ configFile: configPath, cwd: tmpDir })
     expect(cfg.token).toBe(token)
-    expect(cfg.tunnel.slug).toBe('myapp')
+    expect(cfg.conduit.slug).toBe('myapp')
   })
 
   it('.env.local token overrides .env token', () => {
-    const configPath = path.join(tmpDir, '.tunnel')
-    writeTunnelConfig(configPath, { slug: 'myapp', port: 3000, httpEnabled: false })
+    const configPath = path.join(tmpDir, '.conduit')
+    writeConduitConfig(configPath, { slug: 'myapp', port: 3000, httpEnabled: false })
 
     const baseToken = makeToken('myapp')
     const localToken = makeToken('myapp')
-    writeEnvFile(tmpDir, '.env', `TUNNEL_TOKEN=${baseToken}\n`)
-    writeEnvFile(tmpDir, '.env.local', `TUNNEL_TOKEN=${localToken}\n`)
+    writeEnvFile(tmpDir, '.env', `CONDUIT_TOKEN=${baseToken}\n`)
+    writeEnvFile(tmpDir, '.env.local', `CONDUIT_TOKEN=${localToken}\n`)
 
     const cfg = loadConfig({ configFile: configPath, cwd: tmpDir })
     // .env.local overrides .env
     expect(cfg.token).toBe(localToken)
   })
 
-  it('missing TUNNEL_TOKEN falls back gracefully to null', () => {
-    const configPath = path.join(tmpDir, '.tunnel')
-    writeTunnelConfig(configPath, { slug: 'myapp', port: 3000, httpEnabled: false })
+  it('missing CONDUIT_TOKEN falls back gracefully to null', () => {
+    const configPath = path.join(tmpDir, '.conduit')
+    writeConduitConfig(configPath, { slug: 'myapp', port: 3000, httpEnabled: false })
 
     const cfg = loadConfig({ configFile: configPath, cwd: tmpDir })
     expect(cfg.token).toBeNull()
   })
 
   it('throws ConfigMismatchError when token slug does not match config slug', () => {
-    const configPath = path.join(tmpDir, '.tunnel')
-    writeTunnelConfig(configPath, { slug: 'myapp', port: 3000, httpEnabled: false })
+    const configPath = path.join(tmpDir, '.conduit')
+    writeConduitConfig(configPath, { slug: 'myapp', port: 3000, httpEnabled: false })
 
     // Token issued for a different slug
     const wrongToken = makeToken('other-slug')
-    writeEnvFile(tmpDir, '.env', `TUNNEL_TOKEN=${wrongToken}\n`)
+    writeEnvFile(tmpDir, '.env', `CONDUIT_TOKEN=${wrongToken}\n`)
 
     expect(() => loadConfig({ configFile: configPath, cwd: tmpDir })).toThrow(ConfigMismatchError)
   })
 
   it('ConfigMismatchError message contains both slugs', () => {
-    const configPath = path.join(tmpDir, '.tunnel')
-    writeTunnelConfig(configPath, { slug: 'myapp', port: 3000, httpEnabled: false })
+    const configPath = path.join(tmpDir, '.conduit')
+    writeConduitConfig(configPath, { slug: 'myapp', port: 3000, httpEnabled: false })
     const wrongToken = makeToken('other-slug')
-    writeEnvFile(tmpDir, '.env', `TUNNEL_TOKEN=${wrongToken}\n`)
+    writeEnvFile(tmpDir, '.env', `CONDUIT_TOKEN=${wrongToken}\n`)
 
     let error: ConfigMismatchError | null = null
     try {

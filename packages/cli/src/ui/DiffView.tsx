@@ -1,6 +1,6 @@
 import React from 'react'
 import { Box, Text } from 'ink'
-import type { RequestRecord } from '@snc/tunnel-types'
+import type { RequestRecord } from '@conduit/types'
 import * as jsondiffpatch from 'jsondiffpatch'
 
 type Delta = jsondiffpatch.Delta

@@ -1,11 +1,11 @@
 import jwt from 'jsonwebtoken'
 import { loadConfig, writeToken } from '../config.js'
 
-const DEFAULT_RELAY = 'https://debug.snc.digital'
+const DEFAULT_RELAY = 'https://debug.tunnel.digital'
 const RENEWAL_THRESHOLD_DAYS = 7
 
 export async function cmdTokenRefresh(args: { relay?: string }) {
-  const relayBase = (args.relay ?? process.env['TUNNEL_RELAY_URL'] ?? DEFAULT_RELAY)
+  const relayBase = (args.relay ?? process.env['CONDUIT_RELAY_URL'] ?? DEFAULT_RELAY)
     .replace(/^wss?:\/\//, 'https://')
     .replace(/\/$/, '')
 
@@ -20,19 +20,19 @@ export async function cmdTokenRefresh(args: { relay?: string }) {
   }
 
   if (!cfg.token) {
-    console.error('No TUNNEL_TOKEN found. Run `snc start` to register a tunnel first.')
+    console.error('No CONDUIT_TOKEN found. Run `conduit start` to register a conduit first.')
     process.exit(1)
   }
 
   const token = cfg.token
-  const slug = cfg.tunnel.slug
+  const slug = cfg.conduit.slug
 
   // Decode to check expiry
   let decoded: Record<string, unknown> | null = null
   try {
     decoded = jwt.decode(token) as Record<string, unknown> | null
   } catch {
-    console.error('Malformed TUNNEL_TOKEN — cannot decode')
+    console.error('Malformed CONDUIT_TOKEN — cannot decode')
     process.exit(1)
   }
 
@@ -59,7 +59,7 @@ export async function cmdTokenRefresh(args: { relay?: string }) {
 
   // Attempt renewal
   try {
-    const res = await fetch(`${relayBase}/tunnel/${slug}/renew`, {
+    const res = await fetch(`${relayBase}/conduit/${slug}/renew`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,

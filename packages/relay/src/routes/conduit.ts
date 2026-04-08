@@ -1,12 +1,12 @@
 import { randomUUID } from 'crypto'
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
-import type { IncomingRequest, RequestCompleted } from '@snc/tunnel-types'
+import type { IncomingRequest, RequestCompleted } from '@conduit/types'
 import type { RelayConfig } from '../config.js'
 import type { StorageAdapter, RequestRecord } from '../storage/interface.js'
 import { ConnectionRegistry } from '../ws/registry.js'
 import { PendingRequests } from '../ws/pending.js'
 
-interface TunnelRoutesOptions {
+interface ConduitRoutesOptions {
   config: RelayConfig
   storage: StorageAdapter
   registry: ConnectionRegistry
@@ -42,9 +42,9 @@ function flattenHeaders(headers: Record<string, string | string[] | undefined>):
   return out
 }
 
-export async function tunnelRoutes(
+export async function conduitRoutes(
   app: FastifyInstance,
-  opts: TunnelRoutesOptions,
+  opts: ConduitRoutesOptions,
 ): Promise<void> {
   const { config, storage, registry, pending } = opts
 
@@ -61,7 +61,7 @@ export async function tunnelRoutes(
 
   app.route<{ Params: { slug: string; '*': string } }>({
     method: methods,
-    url: '/tunnel/:slug/*',
+    url: '/conduit/:slug/*',
     handler: async (
       req: FastifyRequest<{ Params: { slug: string; '*': string } }>,
       reply: FastifyReply,
@@ -75,7 +75,7 @@ export async function tunnelRoutes(
         return reply
           .code(502)
           .header('content-type', 'application/json')
-          .send({ error: 'No tunnel owner connected for this slug' })
+          .send({ error: 'No conduit owner connected for this slug' })
       }
 
       // 2. Read and optionally truncate request body
@@ -140,7 +140,7 @@ export async function tunnelRoutes(
         ownerWs.send(JSON.stringify(incomingMsg))
       } catch (sendErr) {
         pending.reject(requestId, sendErr instanceof Error ? sendErr : new Error(String(sendErr)))
-        return reply.code(502).send({ error: 'Failed to forward request to tunnel owner' })
+        return reply.code(502).send({ error: 'Failed to forward request to conduit owner' })
       }
 
       // 7. Wait for ForwardResponse (or timeout / owner disconnect)

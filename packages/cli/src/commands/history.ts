@@ -1,8 +1,8 @@
-import { TunnelClient } from '../ws/client.js'
+import { ConduitClient } from '../ws/client.js'
 import { loadConfig } from '../config.js'
-import type { RequestRecords, RequestRecord } from '@snc/tunnel-types'
+import type { RequestRecords, RequestRecord } from '@conduit/types'
 
-const DEFAULT_RELAY = 'wss://debug.snc.digital'
+const DEFAULT_RELAY = 'wss://debug.tunnel.digital'
 
 function formatAge(ts: number): string {
   const ageMs = Date.now() - ts
@@ -57,7 +57,7 @@ export async function cmdHistory(args: { limit?: number; relay?: string }) {
 
   try {
     const cfg = loadConfig({ cwd })
-    slug = cfg.tunnel.slug
+    slug = cfg.conduit.slug
     token = cfg.token
   } catch {
     // Not strictly required for watcher mode
@@ -84,7 +84,7 @@ export async function cmdHistory(args: { limit?: number; relay?: string }) {
       onDisconnect() {},
     }
 
-    const client = new TunnelClient(relayUrl, slug, token, {}, events)
+    const client = new ConduitClient(relayUrl, slug, token, {}, events)
     client.connect()
 
     setTimeout(() => {

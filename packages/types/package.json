@@ -1,5 +1,5 @@
 {
-  "name": "@snc/tunnel-types",
+  "name": "@conduit/types",
   "version": "1.0.0",
   "private": true,
   "type": "module",

@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react'
 import { Box, Text, useInput, useApp } from 'ink'
-import type { IncomingRequest, RequestCompleted, RequestRecords, RequestRecord } from '@snc/tunnel-types'
-import type { TunnelClient } from '../ws/client.js'
+import type { IncomingRequest, RequestCompleted, RequestRecords, RequestRecord } from '@conduit/types'
+import type { ConduitClient } from '../ws/client.js'
 import { Header } from './Header.js'
 import { RequestList, type RequestEntry } from './RequestList.js'
 import { Inspector } from './Inspector.js'
@@ -10,7 +10,7 @@ interface AppProps {
   slug: string
   url: string
   port: number
-  client: TunnelClient
+  client: ConduitClient
 }
 
 export function App({ slug, url, port, client }: AppProps) {

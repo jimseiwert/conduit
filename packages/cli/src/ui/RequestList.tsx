@@ -1,6 +1,6 @@
 import React from 'react'
 import { Box, Text } from 'ink'
-import type { IncomingRequest, RequestCompleted } from '@snc/tunnel-types'
+import type { IncomingRequest, RequestCompleted } from '@conduit/types'
 
 export interface RequestEntry {
   request: IncomingRequest

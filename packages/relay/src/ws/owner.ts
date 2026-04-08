@@ -8,7 +8,7 @@ import {
   ForwardResponseSchema,
   decodeStreamFrame,
   STREAM_FRAME_TYPE,
-} from '@snc/tunnel-types'
+} from '@conduit/types'
 import type {
   TunnelRegistered,
   TunnelError,
@@ -16,7 +16,7 @@ import type {
   ReplayError,
   IncomingRequest,
   WatcherCount,
-} from '@snc/tunnel-types'
+} from '@conduit/types'
 import type { RelayConfig } from '../config.js'
 import type { StorageAdapter } from '../storage/interface.js'
 import { ConnectionRegistry } from './registry.js'
@@ -48,7 +48,7 @@ export async function ownerWsPlugin(
   const { config, storage, registry, pending } = opts
 
   app.get<{ Params: { slug: string } }>(
-    '/tunnel/:slug',
+    '/conduit/:slug',
     { websocket: true },
     (socket: WebSocket, req: FastifyRequest<{ Params: { slug: string } }>) => {
       const { slug } = req.params
@@ -137,7 +137,7 @@ export async function ownerWsPlugin(
               sendError(
                 socket,
                 'INVALID_TOKEN',
-                'Token expired — run snc token refresh',
+                'Token expired — run conduit token refresh',
               )
               socket.close()
               return
@@ -171,12 +171,12 @@ export async function ownerWsPlugin(
           registered = true
           ownerSlug = slug
 
-          const tunnelUrl = `https://${slug}.tunnel.snc.dev`
+          const conduitUrl = `https://${slug}.conduit.dev`
           const registeredMsg: TunnelRegistered = {
             type: 'registered',
             slug,
             token: finalToken,
-            url: tunnelUrl,
+            url: conduitUrl,
           }
           send(socket, registeredMsg)
           broadcastWatcherCount(slug)

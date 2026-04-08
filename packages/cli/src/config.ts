@@ -4,14 +4,14 @@ import * as dotenv from 'dotenv'
 import { expand } from 'dotenv-expand'
 import jwt from 'jsonwebtoken'
 
-export interface TunnelConfig {
+export interface ConduitConfig {
   slug: string
   port: number
   httpEnabled: boolean
 }
 
 export interface LoadedConfig {
-  tunnel: TunnelConfig
+  conduit: ConduitConfig
   token: string | null
   userToken: string | null
   configPath: string
@@ -55,13 +55,13 @@ export function loadDotenv(cwd: string): void {
 }
 
 /**
- * Reads and parses the .tunnel config file.
+ * Reads and parses the .conduit config file.
  * Throws with clear message if file not found or invalid JSON.
  */
-export function readTunnelConfig(configPath: string): TunnelConfig {
+export function readConduitConfig(configPath: string): ConduitConfig {
   if (!fs.existsSync(configPath)) {
     throw new ConfigNotFoundError(
-      `Config file not found: ${configPath}\nRun \`snc start --slug <your-slug>\` to register a tunnel.`
+      `Config file not found: ${configPath}\nRun \`conduit start --slug <your-slug>\` to register a conduit.`
     )
   }
 
@@ -100,9 +100,9 @@ export function readTunnelConfig(configPath: string): TunnelConfig {
 }
 
 /**
- * Writes the .tunnel config file (on first registration).
+ * Writes the .conduit config file (on first registration).
  */
-export function writeTunnelConfig(configPath: string, config: TunnelConfig): void {
+export function writeConduitConfig(configPath: string, config: ConduitConfig): void {
   const dir = path.dirname(configPath)
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true })
@@ -111,12 +111,12 @@ export function writeTunnelConfig(configPath: string, config: TunnelConfig): voi
 }
 
 /**
- * Writes TUNNEL_TOKEN to .env file.
- * Creates if not exists, updates the TUNNEL_TOKEN line if present.
+ * Writes CONDUIT_TOKEN to .env file.
+ * Creates if not exists, updates the CONDUIT_TOKEN line if present.
  */
 export function writeToken(cwd: string, token: string): void {
   const envPath = path.join(cwd, '.env')
-  const newLine = `TUNNEL_TOKEN=${token}`
+  const newLine = `CONDUIT_TOKEN=${token}`
 
   if (!fs.existsSync(envPath)) {
     fs.writeFileSync(envPath, newLine + '\n', 'utf8')
@@ -125,7 +125,7 @@ export function writeToken(cwd: string, token: string): void {
 
   const content = fs.readFileSync(envPath, 'utf8')
   const lines = content.split('\n')
-  const tokenLineIdx = lines.findIndex((l) => l.startsWith('TUNNEL_TOKEN='))
+  const tokenLineIdx = lines.findIndex((l) => l.startsWith('CONDUIT_TOKEN='))
 
   if (tokenLineIdx >= 0) {
     lines[tokenLineIdx] = newLine
@@ -152,12 +152,12 @@ export function validateTokenSlugMatch(token: string, slug: string): boolean {
     }
     decoded = payload as Record<string, unknown>
   } catch (err) {
-    throw new Error(`Malformed TUNNEL_TOKEN: ${(err as Error).message}`)
+    throw new Error(`Malformed CONDUIT_TOKEN: ${(err as Error).message}`)
   }
 
   const tokenSlug = decoded['slug'] as string | undefined
   if (tokenSlug === undefined) {
-    throw new Error('TUNNEL_TOKEN payload missing "slug" field')
+    throw new Error('CONDUIT_TOKEN payload missing "slug" field')
   }
 
   return tokenSlug === slug
@@ -172,19 +172,19 @@ export function loadConfig(options: {
 }): LoadedConfig {
   const cwd = options.cwd ?? process.cwd()
 
-  // Load dotenv files first so TUNNEL_TOKEN is available from .env
+  // Load dotenv files first so CONDUIT_TOKEN is available from .env
   loadDotenv(cwd)
 
-  const configPath = options.configFile ?? process.env['TUNNEL_CONFIG_FILE'] ?? path.join(cwd, '.tunnel')
+  const configPath = options.configFile ?? process.env['CONDUIT_CONFIG_FILE'] ?? path.join(cwd, '.conduit')
 
-  const tunnel = readTunnelConfig(configPath)
+  const conduit = readConduitConfig(configPath)
 
-  const token = process.env['TUNNEL_TOKEN'] ?? null
-  const userToken = process.env['TUNNEL_USER_TOKEN'] ?? null
+  const token = process.env['CONDUIT_TOKEN'] ?? null
+  const userToken = process.env['CONDUIT_USER_TOKEN'] ?? null
 
   // Validate token slug matches config slug if both are present
-  if (token && tunnel.slug) {
-    const matches = validateTokenSlugMatch(token, tunnel.slug)
+  if (token && conduit.slug) {
+    const matches = validateTokenSlugMatch(token, conduit.slug)
     if (!matches) {
       let decoded: Record<string, unknown>
       try {
@@ -194,10 +194,10 @@ export function loadConfig(options: {
       }
       const tokenSlug = decoded['slug'] as string ?? 'unknown'
       throw new ConfigMismatchError(
-        `TUNNEL_TOKEN was issued for slug '${tokenSlug}' but .tunnel configures slug '${tunnel.slug}'. Run \`snc start --slug ${tokenSlug}\` or delete .tunnel to re-register.`
+        `CONDUIT_TOKEN was issued for slug '${tokenSlug}' but .conduit configures slug '${conduit.slug}'. Run \`conduit start --slug ${tokenSlug}\` or delete .conduit to re-register.`
       )
     }
   }
 
-  return { tunnel, token, userToken, configPath }
+  return { conduit, token, userToken, configPath }
 }

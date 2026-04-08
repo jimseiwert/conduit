@@ -1,5 +1,5 @@
 {
-  "name": "snc-tunnel",
+  "name": "@conduit/root",
   "version": "1.0.0",
   "private": true,
   "workspaces": [

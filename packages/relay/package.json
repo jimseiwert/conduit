@@ -1,5 +1,5 @@
 {
-  "name": "@snc/tunnel-relay",
+  "name": "@conduit/relay",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -19,7 +19,7 @@
     "@azure/msal-node": "^2.16.2",
     "pg": "^8.13.3",
     "ws": "^8.18.0",
-    "@snc/tunnel-types": "*"
+    "@conduit/types": "*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

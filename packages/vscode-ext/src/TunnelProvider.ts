@@ -48,7 +48,7 @@ export class RequestTreeItem extends vscode.TreeItem {
   }
 }
 
-export class TunnelProvider implements vscode.TreeDataProvider<RequestTreeItem> {
+export class ConduitProvider implements vscode.TreeDataProvider<RequestTreeItem> {
   private _onDidChangeTreeData = new vscode.EventEmitter<RequestTreeItem | undefined>()
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event
 

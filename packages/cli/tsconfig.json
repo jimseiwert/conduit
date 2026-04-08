@@ -7,7 +7,7 @@
     "types": ["node"],
     "jsx": "react",
     "paths": {
-      "@snc/tunnel-types": ["../types/src/index.ts"]
+      "@conduit/types": ["../types/src/index.ts"]
     }
   },
   "references": [

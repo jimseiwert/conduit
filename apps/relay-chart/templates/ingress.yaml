@@ -2,9 +2,9 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "tunnel-relay.fullname" . }}
+  name: {{ include "conduit-relay.fullname" . }}
   labels:
-    {{- include "tunnel-relay.labels" . | nindent 4 }}
+    {{- include "conduit-relay.labels" . | nindent 4 }}
   {{- if .Values.ingress.annotations }}
   annotations:
     {{- toYaml .Values.ingress.annotations | nindent 4 }}
@@ -34,7 +34,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ include "tunnel-relay.fullname" . }}
+                name: {{ include "conduit-relay.fullname" . }}
                 port:
                   number: {{ .Values.service.port }}
 {{- end }}

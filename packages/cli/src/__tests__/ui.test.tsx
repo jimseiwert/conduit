@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'bun:test'
 import React from 'react'
 import { render } from 'ink-testing-library'
-import type { IncomingRequest, RequestCompleted } from '@snc/tunnel-types'
+import type { IncomingRequest, RequestCompleted } from '@conduit/types'
 import { RequestList, type RequestEntry } from '../ui/RequestList.js'
 import { Header } from '../ui/Header.js'
 
@@ -131,22 +131,22 @@ describe('Header', () => {
   it('renders URL and connected state', () => {
     const { lastFrame } = render(
       React.createElement(Header, {
-        url: 'https://myapp.debug.snc.digital',
+        url: 'https://myapp.debug.tunnel.digital',
         connected: true,
         watcherCount: 0,
       })
     )
 
     const frame = lastFrame() ?? ''
-    expect(frame).toContain('SNC Tunnel')
-    expect(frame).toContain('myapp.debug.snc.digital')
+    expect(frame).toContain('Conduit')
+    expect(frame).toContain('myapp.debug.tunnel.digital')
     expect(frame).toContain('Connected')
   })
 
   it('shows reconnecting state when not connected', () => {
     const { lastFrame } = render(
       React.createElement(Header, {
-        url: 'https://myapp.debug.snc.digital',
+        url: 'https://myapp.debug.tunnel.digital',
         connected: false,
         watcherCount: 0,
       })
@@ -158,7 +158,7 @@ describe('Header', () => {
   it('shows watcher count', () => {
     const { lastFrame } = render(
       React.createElement(Header, {
-        url: 'https://myapp.debug.snc.digital',
+        url: 'https://myapp.debug.tunnel.digital',
         connected: true,
         watcherCount: 3,
       })
@@ -170,7 +170,7 @@ describe('Header', () => {
   it('uses singular watcher when count is 1', () => {
     const { lastFrame } = render(
       React.createElement(Header, {
-        url: 'https://myapp.debug.snc.digital',
+        url: 'https://myapp.debug.tunnel.digital',
         connected: true,
         watcherCount: 1,
       })
@@ -184,7 +184,7 @@ describe('Header', () => {
   it('updates when watcher count changes', () => {
     const { lastFrame, rerender } = render(
       React.createElement(Header, {
-        url: 'https://myapp.debug.snc.digital',
+        url: 'https://myapp.debug.tunnel.digital',
         connected: true,
         watcherCount: 0,
       })
@@ -194,7 +194,7 @@ describe('Header', () => {
 
     rerender(
       React.createElement(Header, {
-        url: 'https://myapp.debug.snc.digital',
+        url: 'https://myapp.debug.tunnel.digital',
         connected: true,
         watcherCount: 5,
       })

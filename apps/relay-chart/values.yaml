@@ -1,7 +1,7 @@
-# Default values for tunnel-relay.
+# Default values for conduit-relay.
 
 image:
-  repository: ghcr.io/snc/tunnel-relay
+  repository: ghcr.io/jimseiwert/conduit-relay
   tag: latest
   pullPolicy: IfNotPresent
 
@@ -24,11 +24,11 @@ ingress:
     secretName: relay-tls
 
 env:
-  # REQUIRED: set via --set env.TUNNEL_JWT_SECRET=... or a secret
-  TUNNEL_JWT_SECRET: ""
+  # REQUIRED: set via --set env.CONDUIT_JWT_SECRET=... or a secret
+  CONDUIT_JWT_SECRET: ""
   RELAY_REGISTRATION_TOKEN: ""
   STORAGE_ADAPTER: sqlite
-  SQLITE_PATH: /data/tunnel.db
+  SQLITE_PATH: /data/conduit.db
   RING_BUFFER_SIZE: "1000"
   MAX_BODY_BYTES: "1048576"
   FORWARD_TIMEOUT_MS: "30000"

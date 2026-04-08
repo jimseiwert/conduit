@@ -2,7 +2,11 @@ name: Release
 
 on:
   workflow_dispatch:
-    
+    inputs:
+      version:
+        description: 'Release version (e.g. 1.2.3)'
+        required: true
+
   push:
     tags:
       - "v*.*.*"
@@ -12,28 +16,43 @@ permissions:
   packages: write
 
 jobs:
+  resolve-version:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - id: ver
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+          fi
+
   build-cli:
     name: Build CLI (${{ matrix.target }})
     runs-on: ${{ matrix.os }}
+    needs: [resolve-version]
     strategy:
       matrix:
         include:
           - os: ubuntu-latest
             target: linux-x64
-            binary: snc-linux-x64
+            binary: conduit-linux-x64
           - os: ubuntu-latest
             target: linux-arm64
             bun_target: bun-linux-arm64
-            binary: snc-linux-arm64
+            binary: conduit-linux-arm64
           - os: macos-latest
             target: macos-x64
-            binary: snc-macos-x64
+            binary: conduit-macos-x64
           - os: macos-latest
             target: macos-arm64
-            binary: snc-macos-arm64
+            binary: conduit-macos-arm64
           - os: windows-latest
             target: windows-x64
-            binary: snc-windows-x64.exe
+            binary: conduit-windows-x64.exe
 
     steps:
       - uses: actions/checkout@v4
@@ -51,7 +70,7 @@ jobs:
       - name: Build CLI binary
         working-directory: packages/cli
         run: |
-          bun build --compile src/index.ts --outfile dist/${{ matrix.binary }} --target bun
+          bun build --compile src/index.ts --outfile dist/${{ matrix.binary }} --target bun --external react-devtools-core --define 'process.env.VERSION="${{ needs.resolve-version.outputs.version }}"'
 
       - name: Import Apple Developer Certificate (macOS)
         if: runner.os == 'macOS'
@@ -66,18 +85,28 @@ jobs:
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security import "$CERT_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" -A -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security list-keychain -d user -s "$KEYCHAIN_PATH"
 
       - name: Sign and notarize binary (macOS)
         if: runner.os == 'macOS'
         working-directory: packages/cli/dist
         env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID: ${{ vars.APPLE_ID }}
           APPLE_ID_APP_PASSWORD: ${{ secrets.APPLE_ID_APP_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
         run: |
-          codesign --force --sign "Developer ID Application: $APPLE_TEAM_ID" \
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          security unlock-keychain -p "${{ github.run_id }}" "$KEYCHAIN_PATH"
+          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep "Developer ID Application" | awk -F'"' '{print $2}' | head -1)
+          if [ -z "$IDENTITY" ]; then
+            echo "ERROR: No Developer ID Application identity found in keychain" >&2
+            security find-identity -v "$KEYCHAIN_PATH" >&2
+            exit 1
+          fi
+          echo "Signing with identity: $IDENTITY"
+          codesign --force --sign "$IDENTITY" \
             --options runtime --timestamp \
             ${{ matrix.binary }}
           ditto -c -k --keepParent ${{ matrix.binary }} ${{ matrix.binary }}.zip
@@ -97,6 +126,7 @@ jobs:
   build-relay-image:
     name: Build relay Docker image
     runs-on: ubuntu-latest
+    needs: [resolve-version]
     steps:
       - uses: actions/checkout@v4
 
@@ -124,12 +154,13 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/tunnel-relay:latest
-            ghcr.io/${{ github.repository_owner }}/tunnel-relay:${{ github.ref_name }}
+            ghcr.io/${{ github.repository_owner }}/conduit-relay:latest
+            ghcr.io/${{ github.repository_owner }}/conduit-relay:${{ needs.resolve-version.outputs.version }}
 
   build-vscode-ext:
     name: Build VS Code extension
     runs-on: ubuntu-latest
+    needs: [resolve-version]
     steps:
       - uses: actions/checkout@v4
 
@@ -147,24 +178,24 @@ jobs:
         working-directory: packages/vscode-ext
         run: |
           bun run build
-          bunx vsce package --no-dependencies -o snc-tunnel.vsix
+          bunx vsce package --no-dependencies --version ${{ needs.resolve-version.outputs.version }} -o conduit-vscode-ext.vsix
 
       - name: Publish to VS Code Marketplace
         working-directory: packages/vscode-ext
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: bunx vsce publish --pat "$VSCE_PAT" --packagePath snc-tunnel.vsix
+        run: bunx vsce publish --pat "$VSCE_PAT" --packagePath conduit-vscode-ext.vsix
 
       - name: Upload .vsix artifact
         uses: actions/upload-artifact@v4
         with:
-          name: snc-tunnel.vsix
-          path: packages/vscode-ext/snc-tunnel.vsix
+          name: conduit-vscode-ext.vsix
+          path: packages/vscode-ext/conduit-vscode-ext.vsix
 
   publish-helm:
     name: Publish Helm chart to OCI
     runs-on: ubuntu-latest
-    needs: [build-relay-image]
+    needs: [build-relay-image, resolve-version]
     steps:
       - uses: actions/checkout@v4
 
@@ -173,8 +204,8 @@ jobs:
 
       - name: Package and push Helm chart
         run: |
-          helm package apps/relay-chart --version ${{ github.ref_name }}
-          helm push tunnel-relay-${{ github.ref_name }}.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
+          helm package apps/relay-chart --version ${{ needs.resolve-version.outputs.version }}
+          helm push conduit-relay-${{ needs.resolve-version.outputs.version }}.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
 
   release:
     name: Create GitHub Release

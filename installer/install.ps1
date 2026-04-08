@@ -1,11 +1,11 @@
-# SNC Tunnel CLI installer for Windows (PowerShell)
-# Usage: irm https://get.snc.digital/tunnel/install.ps1 | iex
+# Conduit CLI installer for Windows (PowerShell)
+# Usage: irm https://get.tunnel.digital/conduit/install.ps1 | iex
 
 $ErrorActionPreference = "Stop"
 
-$Repo = "snc/tunnel"
-$Binary = "snc"
-$InstallDir = "$env:LOCALAPPDATA\Programs\snc"
+$Repo = "jimseiwert/conduit"
+$Binary = "conduit"
+$InstallDir = "$env:LOCALAPPDATA\Programs\conduit"
 
 # Get latest release
 Write-Host "Fetching latest release..."
@@ -33,5 +33,5 @@ if ($CurrentPath -notlike "*$InstallDir*") {
 }
 
 Write-Host ""
-Write-Host "SNC Tunnel CLI installed successfully!"
-Write-Host "Restart your terminal, then run: snc --help"
+Write-Host "Conduit CLI installed successfully!"
+Write-Host "Restart your terminal, then run: conduit --help"

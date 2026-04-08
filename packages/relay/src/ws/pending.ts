@@ -1,4 +1,4 @@
-import type { ForwardResponse } from '@snc/tunnel-types'
+import type { ForwardResponse } from '@conduit/types'
 
 interface PendingEntry {
   resolve: (resp: ForwardResponse) => void
@@ -10,7 +10,7 @@ interface PendingEntry {
   pendingResponse: ForwardResponse | null
   /** Called when the END stream frame (0x01) is received. */
   streamResolve?: () => void
-  /** The tunnel slug this request belongs to, for rejectAll support. */
+  /** The conduit slug this request belongs to, for rejectAll support. */
   slug: string
 }
 
