@@ -1,14 +1,21 @@
 version: '3.8'
 
 services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy-data:/data
+    depends_on:
+      - relay
+
   relay:
     image: ghcr.io/jimseiwert/conduit-relay:latest
-    # Or build locally:
-    # build:
-    #   context: .
-    #   dockerfile: packages/relay/Dockerfile
-    ports:
-      - "3000:3000"
+    restart: unless-stopped
     environment:
       PORT: "3000"
       CONDUIT_JWT_SECRET: ${CONDUIT_JWT_SECRET:?CONDUIT_JWT_SECRET is required}
@@ -25,7 +32,7 @@ services:
       OIDC_REDIRECT_URI: ${OIDC_REDIRECT_URI:-}
     volumes:
       - relay-data:/data
-    restart: unless-stopped
 
 volumes:
   relay-data:
+  caddy-data:
