@@ -1,9 +1,11 @@
 {
   "name": "conduit-relay",
   "displayName": "Conduit Relay",
-  "description": "Self-hosted conduit debugging for VS Code",
+  "description": "Live HTTP request inspection and replay for your local server. Stream tunnel traffic directly into VS Code.",
   "version": "1.0.0",
   "publisher": "jimseiwert",
+  "icon": "media/icon.png",
+  "galleryBanner": { "color": "#0F172A", "theme": "dark" },
   "engines": { "vscode": "^1.85.0" },
   "categories": ["Debuggers", "Other"],
   "activationEvents": ["onStartupFinished"],
