@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - '**'
+    tags-ignore:
+      - '**'
+  pull_request:
+
+jobs:
+  build-cli:
+    name: Build CLI (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x64
+            binary: conduit-linux-x64
+          - os: macos-latest
+            target: macos-arm64
+            binary: conduit-macos-arm64
+          - os: windows-latest
+            target: windows-x64
+            binary: conduit-windows-x64.exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build types
+        run: cd packages/types && bun run build
+
+      - name: Build CLI binary
+        working-directory: packages/cli
+        run: |
+          bun build --compile src/index.ts --outfile dist/${{ matrix.binary }} --target bun --external react-devtools-core --define 'process.env.VERSION="0.0.0-ci"'
+
+  build-relay-image:
+    name: Build relay Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build types
+        run: |
+          npm install
+          cd packages/types && npx tsc --build
+          cd ../relay && npx tsc --build
+
+      - name: Build relay image (no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: packages/relay/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: false
+
+  build-vscode-ext:
+    name: Build VS Code extension
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build types
+        run: cd packages/types && bun run build
+
+      - name: Build and package extension
+        working-directory: packages/vscode-ext
+        run: |
+          bun run build
+          jq '.version = "0.0.0"' package.json > package.json.tmp && mv package.json.tmp package.json
+          bunx vsce package --no-dependencies -o conduit-vscode-ext.vsix
+
+  package-helm:
+    name: Package Helm chart
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Package Helm chart (no push)
+        run: helm package apps/relay-chart --version 0.0.0

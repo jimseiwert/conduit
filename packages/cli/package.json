@@ -16,7 +16,7 @@
     "ink": "^5.1.0",
     "react": "^18.3.1",
     "@types/react": "^18.3.12",
-    "jsondiffpatch": "^0.6.0",
+    "jsondiffpatch": "^0.7.2",
     "jsonwebtoken": "^9.0.2",
     "ws": "^8.18.0",
     "dotenv": "^16.4.7",
