@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/jimseiwert/conduit/main/assets/logo.svg" alt="conduit" width="260" />
+  <img src="https://raw.githubusercontent.com/jimseiwert/conduit/main/assets/logo-mark.png" alt="conduit" width="80" />
   <br/><br/>
   <p><strong>Live request inspection and replay for your local server — directly in VS Code.</strong></p>
 </div>
