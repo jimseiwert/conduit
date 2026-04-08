@@ -2,7 +2,7 @@ import { ConduitClient } from '../ws/client.js'
 import { loadConfig } from '../config.js'
 import type { RequestRecords, RequestRecord } from '@conduit/types'
 
-const DEFAULT_RELAY = 'wss://debug.tunnel.digital'
+const DEFAULT_RELAY = 'wss://relay.conduitrelay.com'
 
 function formatAge(ts: number): string {
   const ageMs = Date.now() - ts

@@ -2,7 +2,7 @@ import { ConduitClient } from '../ws/client.js'
 import { loadConfig } from '../config.js'
 import type { RequestCompleted, RequestRecords } from '@conduit/types'
 
-const DEFAULT_RELAY = 'wss://debug.tunnel.digital'
+const DEFAULT_RELAY = 'wss://relay.conduitrelay.com'
 
 export async function cmdReplay(id: string, args: { relay?: string }) {
   const relayUrl = args.relay ?? process.env['TUNNEL_RELAY_URL'] ?? DEFAULT_RELAY

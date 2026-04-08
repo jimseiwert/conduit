@@ -1,5 +1,5 @@
 # Conduit CLI installer for Windows (PowerShell)
-# Usage: irm https://get.tunnel.digital/conduit/install.ps1 | iex
+# Usage: irm https://get.conduitrelay.com/conduit/install.ps1 | iex
 
 $ErrorActionPreference = "Stop"
 

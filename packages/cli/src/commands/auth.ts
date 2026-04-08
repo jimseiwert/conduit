@@ -3,7 +3,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import * as child_process from 'node:child_process'
 
-const DEFAULT_RELAY = 'https://debug.tunnel.digital'
+const DEFAULT_RELAY = 'https://relay.conduitrelay.com'
 
 /**
  * Opens a URL in the system default browser.

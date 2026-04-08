@@ -45,7 +45,7 @@
         },
         "conduit.relayUrl": {
           "type": "string",
-          "default": "wss://debug.tunnel.digital",
+          "default": "wss://relay.conduitrelay.com",
           "description": "Relay WebSocket URL"
         },
         "conduit.autoConnect": {
