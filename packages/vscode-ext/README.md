@@ -22,7 +22,7 @@ Conduit streams every HTTP request that hits your tunnel straight into a VS Code
 
 You need a Conduit relay to connect to. Options:
 
-- **Use the hosted relay** at `wss://debug.tunnel.digital` — works out of the box, no setup
+- **Use the hosted relay** at `wss://relay.conduitrelay.com` — works out of the box, no setup
 - **Self-host** on Kubernetes or Docker — see the [Conduit repo](https://github.com/jimseiwert/conduit) for the Helm chart and Docker Compose file
 
 You also need the **Conduit CLI** to register a slug and start your tunnel:
@@ -61,7 +61,7 @@ If your project has a `.conduit` file, the extension connects automatically when
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `conduit.relayUrl` | `wss://debug.tunnel.digital` | WebSocket URL of your relay server |
+| `conduit.relayUrl` | `wss://relay.conduitrelay.com` | WebSocket URL of your relay server |
 | `conduit.configFile` | `.conduit` | Path to the conduit config file (relative to workspace root) |
 | `conduit.autoConnect` | `true` | Auto-connect when a `.conduit` file is found in the workspace |
 

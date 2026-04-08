@@ -5,7 +5,7 @@ import { loadConfig, writeConduitConfig, writeToken, ConfigMismatchError } from 
 import { ConduitClient } from '../ws/client.js'
 import { App } from '../ui/App.js'
 
-const DEFAULT_RELAY = 'wss://debug.tunnel.digital'
+const DEFAULT_RELAY = 'wss://relay.conduitrelay.com'
 
 export async function cmdStart(args: {
   port?: number

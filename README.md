@@ -32,12 +32,12 @@ Conduit routes public HTTPS traffic to your localhost and gives you a full debug
 
 **macOS / Linux**
 ```bash
-curl -fsSL https://get.tunnel.digital/conduit | bash
+curl -fsSL https://get.conduitrelay.com/conduit | bash
 ```
 
 **Windows (PowerShell)**
 ```powershell
-irm https://get.tunnel.digital/conduit/install.ps1 | iex
+irm https://get.conduitrelay.com/conduit/install.ps1 | iex
 ```
 
 **VS Code** — Install [Conduit Relay](https://marketplace.visualstudio.com/items?itemName=jimseiwert.conduit-relay) from the Marketplace.
@@ -52,7 +52,7 @@ conduit start --slug myapp --port 3000
 Your public URL appears in the TUI header. Send a request to it — it shows up immediately.
 
 ```
-https://myapp.conduit.dev
+https://myapp.conduitrelay.com
 ```
 
 On your next run, conduit reads `.conduit` and reconnects automatically. No flags needed.

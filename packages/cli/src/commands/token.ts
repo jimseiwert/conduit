@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken'
 import { loadConfig, writeToken } from '../config.js'
 
-const DEFAULT_RELAY = 'https://debug.tunnel.digital'
+const DEFAULT_RELAY = 'https://relay.conduitrelay.com'
 const RENEWAL_THRESHOLD_DAYS = 7
 
 export async function cmdTokenRefresh(args: { relay?: string }) {

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Conduit CLI installer — macOS and Linux
-# Usage: curl -fsSL https://get.tunnel.digital/conduit | bash
+# Usage: curl -fsSL https://get.conduitrelay.com/conduit | bash
 
 set -euo pipefail
 

@@ -3,7 +3,7 @@ import { ConduitClient } from '../ws/client.js'
 import { loadConfig } from '../config.js'
 import type { RequestRecords, RequestRecord } from '@conduit/types'
 
-const DEFAULT_RELAY = 'wss://debug.tunnel.digital'
+const DEFAULT_RELAY = 'wss://relay.conduitrelay.com'
 
 function formatDelta(delta: jsondiffpatch.Delta, path = '', indent = 0): void {
   if (delta === null || delta === undefined) return
