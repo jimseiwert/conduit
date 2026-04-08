@@ -1,0 +1,226 @@
+import React, { useState, useCallback } from 'react'
+import { Box, Text, useInput, useApp } from 'ink'
+import type { IncomingRequest, RequestCompleted, RequestRecords, RequestRecord } from '@snc/tunnel-types'
+import type { TunnelClient } from '../ws/client.js'
+import { Header } from './Header.js'
+import { RequestList, type RequestEntry } from './RequestList.js'
+import { Inspector } from './Inspector.js'
+
+interface AppProps {
+  slug: string
+  url: string
+  port: number
+  client: TunnelClient
+}
+
+export function App({ slug, url, port, client }: AppProps) {
+  const { exit } = useApp()
+
+  const [connected, setConnected] = useState(false)
+  const [watcherCount, setWatcherCount] = useState(0)
+  const [entries, setEntries] = useState<RequestEntry[]>([])
+  const [selectedIndex, setSelectedIndex] = useState(0)
+  const [diffBaseIndex, setDiffBaseIndex] = useState<number | null>(null)
+  const [diffBaseRecord, setDiffBaseRecord] = useState<RequestRecord | null>(null)
+  const [records, setRecords] = useState<Map<string, RequestRecord>>(new Map())
+
+  // Wire up client events once on mount
+  React.useEffect(() => {
+    const originalEvents = {
+      onConnected: client['events' as keyof typeof client],
+    }
+
+    // Patch events into the client by replacing the events object
+    const clientAny = client as unknown as {
+      events: {
+        onConnected: (slug: string, token: string, url: string) => void
+        onRequest: (req: IncomingRequest) => void
+        onRequestChunk: (requestId: string, chunk: Buffer) => void
+        onRequestEnd: (requestId: string) => void
+        onCompleted: (completed: RequestCompleted) => void
+        onWatcherCount: (count: number) => void
+        onRecords: (records: RequestRecords) => void
+        onError: (code: string, message: string) => void
+        onDisconnect: () => void
+      }
+    }
+
+    clientAny.events.onConnected = (_slug, _token, _url) => {
+      setConnected(true)
+    }
+
+    clientAny.events.onRequest = (req: IncomingRequest) => {
+      setEntries((prev) => {
+        const next = [...prev, { request: req }]
+        setSelectedIndex(next.length - 1)
+        return next
+      })
+    }
+
+    clientAny.events.onRequestChunk = (_requestId: string, _chunk: Buffer) => {
+      // Streaming chunks — not displayed in TUI
+    }
+
+    clientAny.events.onRequestEnd = (_requestId: string) => {
+      // Streaming end — not displayed in TUI
+    }
+
+    clientAny.events.onCompleted = (completed: RequestCompleted) => {
+      setEntries((prev) =>
+        prev.map((e) =>
+          e.request.id === completed.requestId ? { ...e, completed } : e
+        )
+      )
+    }
+
+    clientAny.events.onWatcherCount = (count: number) => {
+      setWatcherCount(count)
+    }
+
+    clientAny.events.onRecords = (recs: RequestRecords) => {
+      setRecords((prev) => {
+        const next = new Map(prev)
+        for (const rec of recs.records) {
+          next.set(rec.id, rec)
+        }
+        return next
+      })
+    }
+
+    clientAny.events.onError = (_code: string, _message: string) => {
+      // Could add error display
+    }
+
+    clientAny.events.onDisconnect = () => {
+      setConnected(false)
+    }
+  }, [client])
+
+  useInput((input, key) => {
+    if (input === 'q') {
+      client.disconnect()
+      exit()
+      return
+    }
+
+    if (key.upArrow) {
+      setSelectedIndex((prev) => Math.max(0, prev - 1))
+      return
+    }
+
+    if (key.downArrow) {
+      setSelectedIndex((prev) => Math.min(entries.length - 1, prev + 1))
+      return
+    }
+
+    if (input === 'r') {
+      // Replay selected request
+      if (entries.length > 0 && selectedIndex < entries.length) {
+        const entry = entries[selectedIndex]
+        if (entry) {
+          client.sendReplay(entry.request.id)
+        }
+      }
+      return
+    }
+
+    if (input === 'd') {
+      if (entries.length === 0) return
+      const entry = entries[selectedIndex]
+      if (!entry) return
+
+      if (diffBaseIndex === null) {
+        // Mark this as diff base
+        setDiffBaseIndex(selectedIndex)
+        // Fetch full record for diff
+        client.sendFetch([entry.request.id])
+        // Try to get from local records cache first
+        const rec = records.get(entry.request.id)
+        if (rec) {
+          setDiffBaseRecord(rec)
+        }
+      } else if (diffBaseIndex === selectedIndex) {
+        // Deselect diff base
+        setDiffBaseIndex(null)
+        setDiffBaseRecord(null)
+      } else {
+        // Compare: fetch both if needed
+        const baseEntry = entries[diffBaseIndex]
+        if (baseEntry) {
+          client.sendFetch([baseEntry.request.id, entry.request.id])
+        }
+        // DiffView will use the records once onRecords fires
+      }
+      return
+    }
+
+    if (key.escape) {
+      setDiffBaseIndex(null)
+      setDiffBaseRecord(null)
+      return
+    }
+  })
+
+  const selectedEntry = entries[selectedIndex]
+  const diffBase = diffBaseRecord ?? (diffBaseIndex !== null && entries[diffBaseIndex]
+    ? records.get(entries[diffBaseIndex]!.request.id) ?? null
+    : null)
+  const compareRecord = selectedEntry && diffBaseIndex !== null && diffBaseIndex !== selectedIndex
+    ? records.get(selectedEntry.request.id) ?? null
+    : null
+
+  return (
+    <Box flexDirection="column" height={process.stdout.rows}>
+      <Header url={url} connected={connected} watcherCount={watcherCount} />
+
+      <Box flexDirection="row" flexGrow={1}>
+        {/* Left pane: request list */}
+        <Box flexDirection="column" width={70} borderStyle="single" borderRight={true} borderLeft={false} borderTop={false} borderBottom={false}>
+          <Box paddingX={1} paddingY={0}>
+            <Text bold color="gray">Requests  ({entries.length})</Text>
+          </Box>
+          <RequestList
+            entries={entries}
+            selectedIndex={selectedIndex}
+            diffBaseIndex={diffBaseIndex}
+          />
+        </Box>
+
+        {/* Right pane: inspector */}
+        <Box flexDirection="column" flexGrow={1} paddingLeft={1}>
+          {selectedEntry ? (
+            <>
+              {diffBaseIndex !== null && diffBaseIndex !== selectedIndex && compareRecord && diffBase ? (
+                // Show diff between two requests
+                <Inspector
+                  request={selectedEntry.request}
+                  completed={selectedEntry.completed}
+                  diffBase={diffBase}
+                />
+              ) : (
+                <Inspector
+                  request={selectedEntry.request}
+                  completed={selectedEntry.completed}
+                />
+              )}
+            </>
+          ) : (
+            <Box paddingX={1} paddingY={1}>
+              <Text color="gray">Select a request to inspect</Text>
+            </Box>
+          )}
+        </Box>
+      </Box>
+
+      {/* Footer */}
+      <Box paddingX={1} borderStyle="single" borderTop={true} borderBottom={false} borderLeft={false} borderRight={false}>
+        <Text color="gray">
+          ↑↓ navigate  r replay  d diff  Esc clear diff  q quit
+        </Text>
+        {diffBaseIndex !== null && (
+          <Text color="yellow">  [diff mode: base selected at {diffBaseIndex + 1}]</Text>
+        )}
+      </Box>
+    </Box>
+  )
+}

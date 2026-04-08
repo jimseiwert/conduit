@@ -1,0 +1,73 @@
+{
+  "name": "snc-tunnel",
+  "displayName": "SNC Tunnel",
+  "description": "Self-hosted tunnel debugging for VS Code",
+  "version": "1.0.0",
+  "publisher": "snc",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Debuggers", "Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "snc-tunnel",
+          "title": "SNC Tunnel",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "snc-tunnel": [
+        {
+          "id": "snc-tunnel.requests",
+          "name": "Requests"
+        }
+      ]
+    },
+    "commands": [
+      { "command": "snc-tunnel.connect", "title": "Connect Tunnel" },
+      { "command": "snc-tunnel.disconnect", "title": "Disconnect Tunnel" },
+      { "command": "snc-tunnel.login", "title": "Login (OIDC)" },
+      { "command": "snc-tunnel.replay", "title": "Replay Request" },
+      { "command": "snc-tunnel.refresh", "title": "Refresh" }
+    ],
+    "configuration": {
+      "title": "SNC Tunnel",
+      "properties": {
+        "snctunnel.configFile": {
+          "type": "string",
+          "default": ".tunnel",
+          "description": "Path to tunnel config file"
+        },
+        "snctunnel.relayUrl": {
+          "type": "string",
+          "default": "wss://debug.snc.digital",
+          "description": "Relay WebSocket URL"
+        },
+        "snctunnel.autoConnect": {
+          "type": "boolean",
+          "default": true,
+          "description": "Auto-connect when a .tunnel config file is found"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc --build && node scripts/copy-assets.js",
+    "vscode:prepublish": "bun run build",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "ws": "^8.18.0",
+    "@snc/tunnel-types": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.85.0",
+    "@types/ws": "^8.5.14",
+    "@vscode/vsce": "^3.2.2",
+    "typescript": "^5.4.5"
+  }
+}

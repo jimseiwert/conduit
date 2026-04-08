@@ -1,0 +1,21 @@
+{
+  "name": "snc-tunnel",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "bun run build:types && bun run build:relay && bun run build:cli",
+    "build:types": "cd packages/types && bun run build",
+    "build:relay": "cd packages/relay && bun run build",
+    "build:cli": "cd packages/cli && bun run build",
+    "build:vscode-ext": "cd packages/vscode-ext && bun run build",
+    "test": "bun test --timeout 10000",
+    "dev:relay": "cd packages/relay && bun run dev"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

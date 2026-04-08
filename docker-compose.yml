@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  relay:
+    image: ghcr.io/snc/tunnel-relay:latest
+    # Or build locally:
+    # build:
+    #   context: .
+    #   dockerfile: packages/relay/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: "3000"
+      TUNNEL_JWT_SECRET: ${TUNNEL_JWT_SECRET:?TUNNEL_JWT_SECRET is required}
+      RELAY_REGISTRATION_TOKEN: ${RELAY_REGISTRATION_TOKEN:-}
+      STORAGE_ADAPTER: ${STORAGE_ADAPTER:-sqlite}
+      SQLITE_PATH: /data/tunnel.db
+      RING_BUFFER_SIZE: ${RING_BUFFER_SIZE:-1000}
+      MAX_BODY_BYTES: ${MAX_BODY_BYTES:-1048576}
+      FORWARD_TIMEOUT_MS: ${FORWARD_TIMEOUT_MS:-30000}
+      AUTH_PROVIDER: ${AUTH_PROVIDER:-}
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_REDIRECT_URI: ${OIDC_REDIRECT_URI:-}
+    volumes:
+      - relay-data:/data
+    restart: unless-stopped
+
+volumes:
+  relay-data:

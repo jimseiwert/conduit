@@ -1,0 +1,33 @@
+{
+  "name": "@snc/tunnel-cli",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "snc": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "build:binary": "bun build --compile src/index.ts --outfile dist/snc --target bun",
+    "dev": "bun --watch src/index.ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "ink": "^5.1.0",
+    "react": "^18.3.1",
+    "@types/react": "^18.3.12",
+    "jsondiffpatch": "^0.6.0",
+    "jsonwebtoken": "^9.0.2",
+    "ws": "^8.18.0",
+    "dotenv": "^16.4.7",
+    "dotenv-expand": "^11.0.6",
+    "@snc/tunnel-types": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/ws": "^8.5.14",
+    "ink-testing-library": "^4.0.0",
+    "typescript": "^5.4.5"
+  }
+}

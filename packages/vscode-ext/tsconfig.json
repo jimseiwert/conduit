@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+    "types": ["node"],
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "paths": {
+      "@snc/tunnel-types": ["../types/src/index.ts"]
+    }
+  },
+  "references": [
+    { "path": "../types" }
+  ],
+  "include": ["src/**/*"]
+}

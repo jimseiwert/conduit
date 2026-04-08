@@ -1,0 +1,196 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-cli:
+    name: Build CLI (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x64
+            binary: snc-linux-x64
+          - os: ubuntu-latest
+            target: linux-arm64
+            bun_target: bun-linux-arm64
+            binary: snc-linux-arm64
+          - os: macos-latest
+            target: macos-x64
+            binary: snc-macos-x64
+          - os: macos-latest
+            target: macos-arm64
+            binary: snc-macos-arm64
+          - os: windows-latest
+            target: windows-x64
+            binary: snc-windows-x64.exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build types
+        run: cd packages/types && bun run build
+
+      - name: Build CLI binary
+        working-directory: packages/cli
+        run: |
+          bun build --compile src/index.ts --outfile dist/${{ matrix.binary }} --target bun
+
+      - name: Import Apple Developer Certificate (macOS)
+        if: runner.os == 'macOS'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ github.run_id }}
+        run: |
+          CERT_PATH="$RUNNER_TEMP/certificate.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          echo "$APPLE_CERTIFICATE" | base64 --decode -o "$CERT_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+      - name: Sign and notarize binary (macOS)
+        if: runner.os == 'macOS'
+        working-directory: packages/cli/dist
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_APP_PASSWORD: ${{ secrets.APPLE_ID_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          codesign --force --sign "Developer ID Application: $APPLE_TEAM_ID" \
+            --options runtime --timestamp \
+            ${{ matrix.binary }}
+          ditto -c -k --keepParent ${{ matrix.binary }} ${{ matrix.binary }}.zip
+          xcrun notarytool submit ${{ matrix.binary }}.zip \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_APP_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          rm ${{ matrix.binary }}.zip
+
+      - name: Upload CLI binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.binary }}
+          path: packages/cli/dist/${{ matrix.binary }}
+
+  build-relay-image:
+    name: Build relay Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build types
+        run: |
+          npm install
+          cd packages/types && npx tsc --build
+          cd ../relay && npx tsc --build
+
+      - name: Build and push relay image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: packages/relay/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/tunnel-relay:latest
+            ghcr.io/${{ github.repository_owner }}/tunnel-relay:${{ github.ref_name }}
+
+  build-vscode-ext:
+    name: Build VS Code extension
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build types
+        run: cd packages/types && bun run build
+
+      - name: Build and package extension
+        working-directory: packages/vscode-ext
+        run: |
+          bun run build
+          bunx vsce package --no-dependencies -o snc-tunnel.vsix
+
+      - name: Publish to VS Code Marketplace
+        working-directory: packages/vscode-ext
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: bunx vsce publish --pat "$VSCE_PAT" --packagePath snc-tunnel.vsix
+
+      - name: Upload .vsix artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: snc-tunnel.vsix
+          path: packages/vscode-ext/snc-tunnel.vsix
+
+  publish-helm:
+    name: Publish Helm chart to OCI
+    runs-on: ubuntu-latest
+    needs: [build-relay-image]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR (Helm OCI)
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Package and push Helm chart
+        run: |
+          helm package apps/relay-chart --version ${{ github.ref_name }}
+          helm push tunnel-relay-${{ github.ref_name }}.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build-cli, build-relay-image, build-vscode-ext]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all CLI artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/**/*
+          generate_release_notes: true
+          draft: false

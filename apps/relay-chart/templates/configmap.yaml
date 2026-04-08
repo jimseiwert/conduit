@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "tunnel-relay.fullname" . }}
+  labels:
+    {{- include "tunnel-relay.labels" . | nindent 4 }}
+data:
+  STORAGE_ADAPTER: {{ .Values.env.STORAGE_ADAPTER | quote }}
+  SQLITE_PATH: {{ .Values.env.SQLITE_PATH | quote }}
+  RING_BUFFER_SIZE: {{ .Values.env.RING_BUFFER_SIZE | quote }}
+  MAX_BODY_BYTES: {{ .Values.env.MAX_BODY_BYTES | quote }}
+  FORWARD_TIMEOUT_MS: {{ .Values.env.FORWARD_TIMEOUT_MS | quote }}
+  RELAY_DOMAIN: {{ .Values.env.RELAY_DOMAIN | quote }}
+  RELAY_PROTO: {{ .Values.env.RELAY_PROTO | quote }}

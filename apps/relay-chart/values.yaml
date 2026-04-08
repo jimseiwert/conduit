@@ -1,0 +1,49 @@
+# Default values for tunnel-relay.
+
+image:
+  repository: ghcr.io/snc/tunnel-relay
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# IMPORTANT: replicas MUST remain 1. The relay maintains an in-memory WebSocket
+# registry. Multiple replicas would split connections across pods and break routing.
+# For horizontal scaling, add Redis pub/sub (planned for v1.1).
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 3000
+
+ingress:
+  enabled: false
+  className: nginx
+  host: relay.example.com
+  annotations: {}
+  tls:
+    enabled: false
+    secretName: relay-tls
+
+env:
+  # REQUIRED: set via --set env.TUNNEL_JWT_SECRET=... or a secret
+  TUNNEL_JWT_SECRET: ""
+  RELAY_REGISTRATION_TOKEN: ""
+  STORAGE_ADAPTER: sqlite
+  SQLITE_PATH: /data/tunnel.db
+  RING_BUFFER_SIZE: "1000"
+  MAX_BODY_BYTES: "1048576"
+  FORWARD_TIMEOUT_MS: "30000"
+  RELAY_DOMAIN: relay.example.com
+  RELAY_PROTO: https
+
+persistence:
+  enabled: true
+  storageClass: ""
+  size: 2Gi
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

@@ -1,0 +1,66 @@
+export interface RelayConfig {
+  port: number
+  jwtSecret: string
+  registrationToken?: string
+  ringBufferSize: number
+  maxBodyBytes: number
+  forwardTimeoutMs: number
+  storageAdapter: 'memory' | 'sqlite' | 'postgres'
+  sqlitePath?: string
+  databaseUrl?: string
+  authProvider?: 'oidc' | 'msal'
+  // OIDC config
+  oidcIssuer?: string
+  oidcClientId?: string
+  oidcClientSecret?: string
+  oidcRedirectUri?: string
+  // MSAL config
+  msalTenantId?: string
+  msalClientId?: string
+  msalClientSecret?: string
+}
+
+export function loadConfig(): RelayConfig {
+  const jwtSecret = process.env['TUNNEL_JWT_SECRET']
+  if (!jwtSecret) {
+    throw new Error('TUNNEL_JWT_SECRET environment variable is required')
+  }
+
+  const storageAdapter = (process.env['STORAGE_ADAPTER'] ?? 'memory') as RelayConfig['storageAdapter']
+  if (!['memory', 'sqlite', 'postgres'].includes(storageAdapter)) {
+    throw new Error(`Invalid STORAGE_ADAPTER: "${storageAdapter}". Must be "memory", "sqlite", or "postgres"`)
+  }
+
+  if (storageAdapter === 'sqlite' && !process.env['SQLITE_PATH']) {
+    throw new Error('SQLITE_PATH is required when STORAGE_ADAPTER=sqlite')
+  }
+
+  if (storageAdapter === 'postgres' && !process.env['DATABASE_URL']) {
+    throw new Error('DATABASE_URL is required when STORAGE_ADAPTER=postgres')
+  }
+
+  const authProvider = process.env['AUTH_PROVIDER'] as RelayConfig['authProvider'] | undefined
+  if (authProvider && !['oidc', 'msal'].includes(authProvider)) {
+    throw new Error(`Invalid AUTH_PROVIDER: "${authProvider}". Must be "oidc" or "msal"`)
+  }
+
+  return {
+    port: parseInt(process.env['PORT'] ?? '3000', 10),
+    jwtSecret,
+    registrationToken: process.env['RELAY_REGISTRATION_TOKEN'],
+    ringBufferSize: parseInt(process.env['RING_BUFFER_SIZE'] ?? '1000', 10),
+    maxBodyBytes: parseInt(process.env['MAX_BODY_BYTES'] ?? '1048576', 10),
+    forwardTimeoutMs: parseInt(process.env['FORWARD_TIMEOUT_MS'] ?? '30000', 10),
+    storageAdapter,
+    sqlitePath: process.env['SQLITE_PATH'],
+    databaseUrl: process.env['DATABASE_URL'],
+    authProvider,
+    oidcIssuer: process.env['OIDC_ISSUER'],
+    oidcClientId: process.env['OIDC_CLIENT_ID'],
+    oidcClientSecret: process.env['OIDC_CLIENT_SECRET'],
+    oidcRedirectUri: process.env['OIDC_REDIRECT_URI'],
+    msalTenantId: process.env['MSAL_TENANT_ID'],
+    msalClientId: process.env['MSAL_CLIENT_ID'],
+    msalClientSecret: process.env['MSAL_CLIENT_SECRET'],
+  }
+}
