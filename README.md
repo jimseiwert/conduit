@@ -111,13 +111,77 @@ If your token doesn't match the slug in `.conduit`, the CLI tells you exactly wh
 
 The relay is a Fastify WebSocket server. It proxies requests to the owner's CLI, persists a request ring buffer, and broadcasts live traffic to all connected watchers.
 
-### Docker Compose
+### Any Linux VM (recommended quickstart)
+
+The repo includes a `docker-compose.yml` with Caddy for automatic HTTPS and `wss://`. Caddy gets a Let's Encrypt cert on first boot and auto-renews it — no cert management needed.
+
+**1. Install Docker**
+
+```bash
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER && newgrp docker
+```
+
+**2. Clone the repo**
+
+```bash
+sudo git clone https://github.com/jimseiwert/conduit.git /opt/conduit
+sudo chown -R $USER:$USER /opt/conduit
+cd /opt/conduit
+```
+
+**3. Create your `.env`**
 
 ```bash
 cp .env.example .env
-# Edit .env and set CONDUIT_JWT_SECRET to a strong random string
-docker compose up
 ```
+
+Set at minimum:
+
+```
+CONDUIT_JWT_SECRET=your-strong-random-secret-here
+```
+
+**4. Point your domain at the server, then start**
+
+Make sure `relay.yourdomain.com` has an A record pointing at the server's IP, update the `Caddyfile` with your domain, then:
+
+```bash
+nano Caddyfile  # replace relay.conduitrelay.com with your domain
+docker compose up -d
+```
+
+**5. Keep it running across reboots and crashes**
+
+```bash
+sudo tee /etc/systemd/system/conduit.service > /dev/null <<EOF
+[Unit]
+Description=Conduit Relay
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+WorkingDirectory=/opt/conduit
+ExecStart=docker compose up
+ExecStop=docker compose down
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now conduit
+```
+
+**Updating to a new release:**
+
+```bash
+cd /opt/conduit && git pull && docker compose pull && sudo systemctl restart conduit
+```
+
+> **Restarts and state:** `docker compose down` (without `-v`) preserves the SQLite volume, so slug registrations survive a restart. Keep your `.conduit` file on the client and the CLI will reconnect with its existing token automatically. If you need a completely clean slate (e.g. changed `CONDUIT_JWT_SECRET`), use `docker compose down -v` — this wipes stored slugs, so clients will need to re-register with `conduit start --slug <name>`.
 
 ### Kubernetes (Helm)
 
@@ -135,13 +199,17 @@ helm install conduit-relay oci://ghcr.io/jimseiwert/charts/conduit-relay \
 | Adapter | When to use |
 |---------|-------------|
 | `memory` | Development and ephemeral environments |
-| `sqlite` | Single-pod production — persistent, zero-dependency |
+| `sqlite` | Single-pod production — persistent, zero-dependency (default) |
 | `postgres` | Production with an external database |
 
-```bash
-STORAGE_ADAPTER=sqlite SQLITE_PATH=/data/conduit.db
+Set in `.env`:
+
+```
+STORAGE_ADAPTER=sqlite
+SQLITE_PATH=/data/conduit.db
 # or
-STORAGE_ADAPTER=postgres DATABASE_URL=postgres://...
+STORAGE_ADAPTER=postgres
+DATABASE_URL=postgres://user:pass@host/db
 ```
 
 ### Auth (optional)
