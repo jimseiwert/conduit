@@ -101,6 +101,9 @@ Two files keep shareable config and credentials separate.
 **.env** (gitignored — never commit this):
 ```
 CONDUIT_TOKEN=eyJhbGci...
+
+# Self-hosted relay only — omit to use the default conduitrelay.com relay
+CONDUIT_RELAY_URL=wss://relay.yourdomain.com
 ```
 
 On first run with `--slug`, conduit registers the slug with the relay and writes both files for you. Subsequent runs use them automatically.
@@ -175,6 +178,16 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now conduit
 ```
 
+**6. Point your CLI at the relay**
+
+Add this to each project's `.env` (the file conduit reads automatically):
+
+```
+CONDUIT_RELAY_URL=wss://relay.yourdomain.com
+```
+
+Now `conduit start --slug myapp` connects to your relay instead of conduitrelay.com.
+
 **Updating to a new release:**
 
 ```bash
@@ -185,14 +198,44 @@ cd /opt/conduit && git pull && docker compose pull && sudo systemctl restart con
 
 ### Kubernetes (Helm)
 
+The chart is published to GHCR on every release and installed directly via OCI.
+
+**Prerequisites:** a running ingress controller (e.g. [ingress-nginx](https://kubernetes.github.io/ingress-nginx/deploy/)) and an A record for `relay.yourdomain.com` pointing at your cluster's load balancer IP.
+
+**1. Install**
+
 ```bash
 helm install conduit-relay oci://ghcr.io/jimseiwert/charts/conduit-relay \
-  --set env.CONDUIT_JWT_SECRET=<secret> \
+  --namespace conduit \
+  --create-namespace \
+  --set env.CONDUIT_JWT_SECRET=$(openssl rand -hex 32) \
+  --set env.RELAY_DOMAIN=relay.yourdomain.com \
+  --set env.RELAY_PROTO=https \
   --set ingress.enabled=true \
   --set ingress.host=relay.yourdomain.com
 ```
 
+If your ingress controller uses a class name other than `nginx`, add `--set ingress.className=<your-class>`.
+
+**2. Point your CLI at the relay**
+
+Add to each project's `.env`:
+
+```
+CONDUIT_RELAY_URL=wss://relay.yourdomain.com
+```
+
+**Updating to a new release:**
+
+```bash
+helm upgrade conduit-relay oci://ghcr.io/jimseiwert/charts/conduit-relay \
+  --namespace conduit \
+  --reuse-values
+```
+
 > **Keep `replicaCount: 1`.** The relay holds an in-memory WebSocket registry. Horizontal scaling via Redis pub/sub is planned for v1.1.
+
+> **State:** `helm upgrade` preserves the PVC — slug registrations survive upgrades. `helm uninstall` removes the PVC and wipes all stored slugs. Clients will need to re-register with `conduit start --slug <name>` after a full uninstall.
 
 ### Storage Adapters
 
@@ -202,7 +245,7 @@ helm install conduit-relay oci://ghcr.io/jimseiwert/charts/conduit-relay \
 | `sqlite` | Single-pod production — persistent, zero-dependency (default) |
 | `postgres` | Production with an external database |
 
-Set in `.env`:
+**Docker Compose** — set in `.env`:
 
 ```
 STORAGE_ADAPTER=sqlite
@@ -212,9 +255,28 @@ STORAGE_ADAPTER=postgres
 DATABASE_URL=postgres://user:pass@host/db
 ```
 
+**Helm** — pass as `--set` flags:
+
+```bash
+--set env.STORAGE_ADAPTER=postgres \
+--set env.DATABASE_URL=postgres://user:pass@host/db
+```
+
 ### Auth (optional)
 
-Set `AUTH_PROVIDER=oidc` or `AUTH_PROVIDER=msal` (Azure AD) on the relay to require user authentication on top of token-bound slugs. See `.env.example` for the full variable list.
+Set `AUTH_PROVIDER=oidc` or `AUTH_PROVIDER=msal` (Azure AD) on the relay to require user authentication on top of token-bound slugs.
+
+**Docker Compose** — set in `.env`. See `.env.example` for the full variable list.
+
+**Helm:**
+
+```bash
+--set env.AUTH_PROVIDER=oidc \
+--set env.OIDC_ISSUER=https://accounts.google.com \
+--set env.OIDC_CLIENT_ID=<client-id> \
+--set env.OIDC_CLIENT_SECRET=<client-secret> \
+--set env.OIDC_REDIRECT_URI=https://relay.yourdomain.com/auth/callback
+```
 
 ## Architecture
 

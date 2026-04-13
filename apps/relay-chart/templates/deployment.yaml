@@ -23,10 +23,21 @@ spec:
           ports:
             - containerPort: 3000
               protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "conduit-relay.fullname" . }}
           env:
-            {{- range $key, $value := .Values.env }}
-            - name: {{ $key }}
-              value: {{ $value | quote }}
+            - name: CONDUIT_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "conduit-relay.fullname" . }}
+                  key: CONDUIT_JWT_SECRET
+            {{- if .Values.env.RELAY_REGISTRATION_TOKEN }}
+            - name: RELAY_REGISTRATION_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "conduit-relay.fullname" . }}
+                  key: RELAY_REGISTRATION_TOKEN
             {{- end }}
           {{- if .Values.persistence.enabled }}
           volumeMounts:
