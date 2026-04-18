@@ -57,9 +57,9 @@
     }
   },
   "scripts": {
-    "build": "tsc --build && node scripts/copy-assets.js",
+    "build": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --platform=node --format=cjs && node scripts/copy-assets.js",
     "vscode:prepublish": "bun run build",
-    "package": "vsce package"
+    "package": "bunx vsce package --no-dependencies"
   },
   "dependencies": {
     "ws": "^8.18.0",
@@ -70,6 +70,7 @@
     "@types/vscode": "^1.85.0",
     "@types/ws": "^8.5.14",
     "@vscode/vsce": "^3.2.2",
+    "esbuild": "^0.25.0",
     "typescript": "^5.4.5"
   }
 }
