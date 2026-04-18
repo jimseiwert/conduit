@@ -1,3 +1,7 @@
 relay.conduitrelay.com {
     reverse_proxy relay:3000
 }
+
+get.conduitrelay.com {
+    redir https://raw.githubusercontent.com/jimseiwert/conduit/main/installer/install.sh 302
+}
