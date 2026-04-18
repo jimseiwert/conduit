@@ -108,6 +108,7 @@ jobs:
           echo "Signing with identity: $IDENTITY"
           codesign --force --sign "$IDENTITY" \
             --options runtime --timestamp \
+            --entitlements "$GITHUB_WORKSPACE/packages/cli/entitlements.plist" \
             ${{ matrix.binary }}
           ditto -c -k --keepParent ${{ matrix.binary }} ${{ matrix.binary }}.zip
           xcrun notarytool submit ${{ matrix.binary }}.zip \
