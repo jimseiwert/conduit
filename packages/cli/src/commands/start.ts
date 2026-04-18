@@ -75,7 +75,9 @@ export async function cmdStart(args: {
     onCompleted() {},
     onWatcherCount() {},
     onRecords() {},
-    onError() {},
+    onError(code: string, message: string) {
+      console.error(`Relay error [${code}]: ${message}`)
+    },
     onDisconnect() {},
   }
 

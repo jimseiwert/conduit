@@ -18,6 +18,7 @@ export function App({ slug, url, port, client }: AppProps) {
 
   const [connected, setConnected] = useState(false)
   const [watcherCount, setWatcherCount] = useState(0)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [entries, setEntries] = useState<RequestEntry[]>([])
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [diffBaseIndex, setDiffBaseIndex] = useState<number | null>(null)
@@ -87,8 +88,13 @@ export function App({ slug, url, port, client }: AppProps) {
       })
     }
 
-    clientAny.events.onError = (_code: string, _message: string) => {
-      // Could add error display
+    clientAny.events.onError = (code: string, message: string) => {
+      setErrorMsg(`[${code}] ${message}`)
+      const fatal = ['SLUG_IN_USE', 'INVALID_TOKEN', 'AUTH_REQUIRED']
+      if (fatal.includes(code)) {
+        client.disconnect()
+        setTimeout(() => exit(), 500)
+      }
     }
 
     clientAny.events.onDisconnect = () => {
@@ -211,6 +217,13 @@ export function App({ slug, url, port, client }: AppProps) {
           )}
         </Box>
       </Box>
+
+      {/* Error banner */}
+      {errorMsg && (
+        <Box paddingX={1} borderStyle="single" borderTop={true} borderBottom={false} borderLeft={false} borderRight={false}>
+          <Text color="red" bold>Error: {errorMsg}</Text>
+        </Box>
+      )}
 
       {/* Footer */}
       <Box paddingX={1} borderStyle="single" borderTop={true} borderBottom={false} borderLeft={false} borderRight={false}>

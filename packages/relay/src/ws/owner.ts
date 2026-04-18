@@ -159,10 +159,17 @@ export async function ownerWsPlugin(
               finalToken = issueSlugToken(slug, config.jwtSecret)
               await storage.registerSlug(slug, finalToken, tokenExpiresAt())
             } else {
-              // Slug exists but no token provided — conflict
-              sendError(socket, 'SLUG_IN_USE', `Slug "${slug}" is already registered`)
-              socket.close()
-              return
+              // Slug exists but no token provided.
+              // If the relay requires a registrationToken and the client passed it,
+              // they're the relay admin — allow reclaiming the slug with a fresh token.
+              if (config.registrationToken) {
+                finalToken = issueSlugToken(slug, config.jwtSecret)
+                await storage.registerSlug(slug, finalToken, tokenExpiresAt())
+              } else {
+                sendError(socket, 'SLUG_IN_USE', `Slug "${slug}" is already registered`)
+                socket.close()
+                return
+              }
             }
           }
 
