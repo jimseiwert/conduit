@@ -96,7 +96,8 @@ export class ConduitClient {
   private _connect(): void {
     if (this.closed) return
 
-    const ws = new WebSocket(this.relayUrl)
+    const wsUrl = `${this.relayUrl.replace(/\/+$/, '')}/conduit/${this.slug}`
+    const ws = new WebSocket(wsUrl)
     this.ws = ws
 
     ws.on('open', () => {

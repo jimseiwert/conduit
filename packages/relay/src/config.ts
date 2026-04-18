@@ -8,6 +8,8 @@ export interface RelayConfig {
   storageAdapter: 'memory' | 'sqlite' | 'postgres'
   sqlitePath?: string
   databaseUrl?: string
+  relayDomain: string
+  relayProto: string
   authProvider?: 'oidc' | 'msal'
   // OIDC config
   oidcIssuer?: string
@@ -54,6 +56,8 @@ export function loadConfig(): RelayConfig {
     storageAdapter,
     sqlitePath: process.env['SQLITE_PATH'],
     databaseUrl: process.env['DATABASE_URL'],
+    relayDomain: process.env['RELAY_DOMAIN'] ?? 'relay.conduitrelay.com',
+    relayProto: process.env['RELAY_PROTO'] ?? 'https',
     authProvider,
     oidcIssuer: process.env['OIDC_ISSUER'],
     oidcClientId: process.env['OIDC_CLIENT_ID'],
