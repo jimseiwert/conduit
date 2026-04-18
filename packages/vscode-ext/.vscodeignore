@@ -1,0 +1,13 @@
+.vscode/**
+.vscode-test/**
+src/**
+scripts/**
+**/*.ts
+!**/*.d.ts
+tsconfig.json
+tsconfig.*.json
+.gitignore
+node_modules/@types/**
+node_modules/typescript/**
+node_modules/@vscode/**
+node_modules/bun-types/**
