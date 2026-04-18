@@ -181,7 +181,7 @@ jobs:
         run: |
           bun run build
           jq --arg v "${{ needs.resolve-version.outputs.version }}" '.version = $v' package.json > package.json.tmp && mv package.json.tmp package.json
-          bunx vsce package --no-dependencies -o conduit-vscode-ext.vsix
+          bunx vsce package -o conduit-vscode-ext.vsix
 
       - name: Publish to VS Code Marketplace
         working-directory: packages/vscode-ext
