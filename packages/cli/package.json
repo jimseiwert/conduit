@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "tsc --build",
-    "build:binary": "bun build --compile src/index.ts --outfile dist/conduit --target bun --external react-devtools-core",
+    "build:binary": "bun build --compile src/index.ts --outfile dist/conduit --target bun",
     "dev": "bun --watch src/index.ts",
     "test": "bun test"
   },
@@ -28,6 +28,7 @@
     "@types/jsonwebtoken": "^9.0.9",
     "@types/ws": "^8.5.14",
     "ink-testing-library": "^4.0.0",
+    "react-devtools-core": "^6.0.1",
     "typescript": "^5.4.5"
   }
 }
