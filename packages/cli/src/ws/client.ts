@@ -175,6 +175,11 @@ export class ConduitClient {
       }
 
       case 'error': {
+        // On INVALID_TOKEN, clear the stale token so the next reconnect
+        // attempt registers fresh (relay re-issues if registrationToken passes).
+        if (msg.code === 'INVALID_TOKEN') {
+          this.currentToken = null
+        }
         this.events.onError(msg.code, msg.message)
         break
       }

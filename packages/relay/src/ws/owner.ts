@@ -146,11 +146,17 @@ export async function ownerWsPlugin(
               socket.close()
               return
             } else {
-              // 'not_found' — treat as first registration if no token provided yet
-              // This can happen if DB was wiped but client still has a token
-              sendError(socket, 'INVALID_TOKEN', 'Slug not found — please re-register')
-              socket.close()
-              return
+              // 'not_found' — DB was wiped or slug never registered on this instance.
+              // If the relay requires a registrationToken and the client passed it,
+              // treat this the same as a fresh registration (re-issue a token).
+              if (config.registrationToken) {
+                finalToken = issueSlugToken(slug, config.jwtSecret)
+                await storage.registerSlug(slug, finalToken, tokenExpiresAt())
+              } else {
+                sendError(socket, 'INVALID_TOKEN', 'Slug not found — please re-register')
+                socket.close()
+                return
+              }
             }
           } else {
             // First registration: issue a new token
