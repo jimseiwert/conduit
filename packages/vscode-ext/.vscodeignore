@@ -11,3 +11,4 @@ node_modules/@types/**
 node_modules/typescript/**
 node_modules/@vscode/**
 node_modules/bun-types/**
+node_modules/@conduit/**
