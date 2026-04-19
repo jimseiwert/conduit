@@ -37,11 +37,20 @@ export async function watcherWsPlugin(
   app: FastifyInstance,
   opts: WatcherWsOptions,
 ): Promise<void> {
-  const { storage, registry } = opts
+  const { config, storage, registry } = opts
 
   app.get<{ Params: { slug: string } }>(
-    '/conduit/:slug/watch',
-    { websocket: true },
+    '/:slug/watch',
+    {
+      websocket: true,
+      schema: {
+        params: {
+          type: 'object',
+          properties: { slug: { type: 'string', pattern: '^ws-[a-f0-9]+$' } },
+          required: ['slug'],
+        },
+      },
+    },
     async (socket: WebSocket, req: FastifyRequest<{ Params: { slug: string } }>) => {
       const { slug } = req.params
 

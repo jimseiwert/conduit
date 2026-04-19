@@ -31,7 +31,16 @@ export async function renewRoutes(
   const { config, storage } = opts
 
   app.post<{ Params: RenewParams }>(
-    '/conduit/:slug/renew',
+    '/:slug/renew',
+    {
+      schema: {
+        params: {
+          type: 'object',
+          properties: { slug: { type: 'string', pattern: '^ws-[a-f0-9]+$' } },
+          required: ['slug'],
+        },
+      },
+    },
     async (req: FastifyRequest<{ Params: RenewParams }>, reply: FastifyReply) => {
       const { slug } = req.params
 

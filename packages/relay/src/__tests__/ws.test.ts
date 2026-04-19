@@ -24,6 +24,18 @@ const defaultConfig: RelayConfig = {
   storageAdapter: 'memory',
 }
 
+// Canonical test slugs using the ws-<12hex> format
+const SLUG_MAIN      = 'ws-aabbccddee11'
+const SLUG_RECONNECT = 'ws-aabbccddee22'
+const SLUG_BUSY      = 'ws-aabbccddee33'
+const SLUG_TOKEN     = 'ws-aabbccddee44'
+const SLUG_PARSE_ERR = 'ws-aabbccddee55'
+const SLUG_GATED     = 'ws-aabbccddee66'
+const SLUG_GRACE     = 'ws-aabbccddee77'
+const SLUG_WATCH     = 'ws-aabbccddee88'
+const SLUG_WATCH_AUTH = 'ws-aabbccddee99'
+const SLUG_WATCH_WRONG = 'ws-aabbccddeeaa'
+
 interface TestContext {
   url: string
   stop: () => Promise<void>
@@ -118,23 +130,23 @@ describe('Owner WebSocket — registration', () => {
   test('first registration returns TunnelRegistered with a token', async () => {
     const registerMsg: RegisterTunnel = {
       type: 'register',
-      slug: 'my-slug',
+      slug: SLUG_MAIN,
       httpEnabled: false,
     }
-    const { ws, firstMsg } = await connectAndReceive(`${ctx.url}/conduit/my-slug`, registerMsg)
+    const { ws, firstMsg } = await connectAndReceive(`${ctx.url}/${SLUG_MAIN}`, registerMsg)
     await closeWs(ws)
 
     expect((firstMsg as TunnelRegistered).type).toBe('registered')
-    expect((firstMsg as TunnelRegistered).slug).toBe('my-slug')
+    expect((firstMsg as TunnelRegistered).slug).toBe(SLUG_MAIN)
     expect(typeof (firstMsg as TunnelRegistered).token).toBe('string')
     expect((firstMsg as TunnelRegistered).token.length).toBeGreaterThan(10)
   })
 
   test('reconnect with valid token returns TunnelRegistered', async () => {
     // First connect to get a token
-    const registerMsg: RegisterTunnel = { type: 'register', slug: 'reconnect-slug', httpEnabled: false }
+    const registerMsg: RegisterTunnel = { type: 'register', slug: SLUG_RECONNECT, httpEnabled: false }
     const { ws: ws1, firstMsg } = await connectAndReceive(
-      `${ctx.url}/conduit/reconnect-slug`,
+      `${ctx.url}/${SLUG_RECONNECT}`,
       registerMsg,
     )
     const token = (firstMsg as TunnelRegistered).token
@@ -144,26 +156,26 @@ describe('Owner WebSocket — registration', () => {
     await new Promise((r) => setTimeout(r, 50))
 
     // Reconnect with the token
-    const reconnectMsg: RegisterTunnel = { type: 'register', slug: 'reconnect-slug', token, httpEnabled: false }
+    const reconnectMsg: RegisterTunnel = { type: 'register', slug: SLUG_RECONNECT, token, httpEnabled: false }
     const { ws: ws2, firstMsg: secondMsg } = await connectAndReceive(
-      `${ctx.url}/conduit/reconnect-slug`,
+      `${ctx.url}/${SLUG_RECONNECT}`,
       reconnectMsg,
     )
     await closeWs(ws2)
 
     expect((secondMsg as TunnelRegistered).type).toBe('registered')
-    expect((secondMsg as TunnelRegistered).slug).toBe('reconnect-slug')
+    expect((secondMsg as TunnelRegistered).slug).toBe(SLUG_RECONNECT)
   })
 
   test('SLUG_IN_USE: second owner connection is rejected', async () => {
-    const registerMsg: RegisterTunnel = { type: 'register', slug: 'busy-slug', httpEnabled: false }
+    const registerMsg: RegisterTunnel = { type: 'register', slug: SLUG_BUSY, httpEnabled: false }
 
     // First connection — should succeed
-    const { ws: ws1 } = await connectAndReceive(`${ctx.url}/conduit/busy-slug`, registerMsg)
+    const { ws: ws1 } = await connectAndReceive(`${ctx.url}/${SLUG_BUSY}`, registerMsg)
 
     // Second connection — should get SLUG_IN_USE error
     const { ws: ws2, firstMsg } = await connectAndReceive(
-      `${ctx.url}/conduit/busy-slug`,
+      `${ctx.url}/${SLUG_BUSY}`,
       registerMsg,
     )
     await closeWs(ws1)
@@ -175,8 +187,8 @@ describe('Owner WebSocket — registration', () => {
 
   test('INVALID_TOKEN: wrong token returns TunnelError', async () => {
     // Register first to create the slug in storage
-    const registerMsg: RegisterTunnel = { type: 'register', slug: 'token-slug', httpEnabled: false }
-    const { ws: ws1 } = await connectAndReceive(`${ctx.url}/conduit/token-slug`, registerMsg)
+    const registerMsg: RegisterTunnel = { type: 'register', slug: SLUG_TOKEN, httpEnabled: false }
+    const { ws: ws1 } = await connectAndReceive(`${ctx.url}/${SLUG_TOKEN}`, registerMsg)
     await closeWs(ws1)
 
     await new Promise((r) => setTimeout(r, 50))
@@ -184,12 +196,12 @@ describe('Owner WebSocket — registration', () => {
     // Try to reconnect with a wrong token
     const badTokenMsg: RegisterTunnel = {
       type: 'register',
-      slug: 'token-slug',
+      slug: SLUG_TOKEN,
       token: 'this-is-not-the-right-token',
       httpEnabled: false,
     }
     const { ws: ws2, firstMsg } = await connectAndReceive(
-      `${ctx.url}/conduit/token-slug`,
+      `${ctx.url}/${SLUG_TOKEN}`,
       badTokenMsg,
     )
     await closeWs(ws2)
@@ -199,8 +211,8 @@ describe('Owner WebSocket — registration', () => {
   })
 
   test('PARSE_ERROR: malformed JSON does not close the connection', async () => {
-    const slug = 'parse-error-slug'
-    const ws = new WebSocket(`${ctx.url}/conduit/${slug}`)
+    const slug = SLUG_PARSE_ERR
+    const ws = new WebSocket(`${ctx.url}/${slug}`)
 
     // Wait for open
     await new Promise<void>((resolve) => ws.on('open', resolve))
@@ -235,8 +247,8 @@ describe('Owner WebSocket — registration', () => {
   test('registration token gate rejects missing token', async () => {
     const ctx2 = await startTestServer({ registrationToken: 'secret-gate' })
     try {
-      const registerMsg: RegisterTunnel = { type: 'register', slug: 'gated-slug', httpEnabled: false }
-      const { ws, firstMsg } = await connectAndReceive(`${ctx2.url}/conduit/gated-slug`, registerMsg)
+      const registerMsg: RegisterTunnel = { type: 'register', slug: SLUG_GATED, httpEnabled: false }
+      const { ws, firstMsg } = await connectAndReceive(`${ctx2.url}/${SLUG_GATED}`, registerMsg)
       await closeWs(ws)
 
       expect((firstMsg as TunnelError).type).toBe('error')
@@ -251,11 +263,11 @@ describe('Owner WebSocket — registration', () => {
     try {
       const registerMsg: RegisterTunnel = {
         type: 'register',
-        slug: 'gated-slug',
+        slug: SLUG_GATED,
         registrationToken: 'secret-gate',
         httpEnabled: false,
       }
-      const { ws, firstMsg } = await connectAndReceive(`${ctx2.url}/conduit/gated-slug`, registerMsg)
+      const { ws, firstMsg } = await connectAndReceive(`${ctx2.url}/${SLUG_GATED}`, registerMsg)
       await closeWs(ws)
 
       expect((firstMsg as TunnelRegistered).type).toBe('registered')
@@ -269,11 +281,11 @@ describe('Owner WebSocket — grace period', () => {
   test('reconnect within 30s grace period succeeds', async () => {
     const ctx = await startTestServer()
     try {
-      const slug = 'grace-slug'
+      const slug = SLUG_GRACE
 
       // First connect, get token, then close
       const registerMsg: RegisterTunnel = { type: 'register', slug, httpEnabled: false }
-      const { ws: ws1, firstMsg } = await connectAndReceive(`${ctx.url}/conduit/${slug}`, registerMsg)
+      const { ws: ws1, firstMsg } = await connectAndReceive(`${ctx.url}/${slug}`, registerMsg)
       const token = (firstMsg as TunnelRegistered).token
       await closeWs(ws1)
 
@@ -282,7 +294,7 @@ describe('Owner WebSocket — grace period', () => {
 
       const reconnectMsg: RegisterTunnel = { type: 'register', slug, token, httpEnabled: false }
       const { ws: ws2, firstMsg: secondMsg } = await connectAndReceive(
-        `${ctx.url}/conduit/${slug}`,
+        `${ctx.url}/${slug}`,
         reconnectMsg,
       )
       await closeWs(ws2)
@@ -307,19 +319,19 @@ describe('Watcher WebSocket', () => {
   })
 
   test('watcher with valid token joins successfully', async () => {
-    const slug = 'watch-slug'
+    const slug = SLUG_WATCH
 
     // Register owner first
     const registerMsg: RegisterTunnel = { type: 'register', slug, httpEnabled: false }
     const { ws: ownerWs, firstMsg } = await connectAndReceive(
-      `${ctx.url}/conduit/${slug}`,
+      `${ctx.url}/${slug}`,
       registerMsg,
     )
     const token = (firstMsg as TunnelRegistered).token
 
     // Connect watcher with token in Authorization header
     const { ws: watcherWs, firstMsg: watcherMsg } = await connectAndReceive(
-      `${ctx.url}/conduit/${slug}/watch`,
+      `${ctx.url}/${slug}/watch`,
       undefined,
       { authorization: `Bearer ${token}` },
     )
@@ -333,15 +345,15 @@ describe('Watcher WebSocket', () => {
   })
 
   test('watcher without token is rejected with AUTH_REQUIRED', async () => {
-    const slug = 'watch-auth-slug'
+    const slug = SLUG_WATCH_AUTH
 
     // Register owner
     const registerMsg: RegisterTunnel = { type: 'register', slug, httpEnabled: false }
-    const { ws: ownerWs } = await connectAndReceive(`${ctx.url}/conduit/${slug}`, registerMsg)
+    const { ws: ownerWs } = await connectAndReceive(`${ctx.url}/${slug}`, registerMsg)
 
     // Connect watcher without token
     const { ws: watcherWs, firstMsg } = await connectAndReceive(
-      `${ctx.url}/conduit/${slug}/watch`,
+      `${ctx.url}/${slug}/watch`,
     )
 
     await closeWs(ownerWs)
@@ -352,15 +364,15 @@ describe('Watcher WebSocket', () => {
   })
 
   test('watcher with wrong token is rejected', async () => {
-    const slug = 'watch-wrong-token-slug'
+    const slug = SLUG_WATCH_WRONG
 
     // Register owner
     const registerMsg: RegisterTunnel = { type: 'register', slug, httpEnabled: false }
-    const { ws: ownerWs } = await connectAndReceive(`${ctx.url}/conduit/${slug}`, registerMsg)
+    const { ws: ownerWs } = await connectAndReceive(`${ctx.url}/${slug}`, registerMsg)
 
     // Connect watcher with wrong token
     const { ws: watcherWs, firstMsg } = await connectAndReceive(
-      `${ctx.url}/conduit/${slug}/watch`,
+      `${ctx.url}/${slug}/watch`,
       undefined,
       { authorization: 'Bearer wrong-token' },
     )

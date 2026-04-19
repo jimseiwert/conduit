@@ -48,8 +48,17 @@ export async function ownerWsPlugin(
   const { config, storage, registry, pending } = opts
 
   app.get<{ Params: { slug: string } }>(
-    '/conduit/:slug',
-    { websocket: true },
+    '/:slug',
+    {
+      websocket: true,
+      schema: {
+        params: {
+          type: 'object',
+          properties: { slug: { type: 'string', pattern: '^ws-[a-f0-9]+$' } },
+          required: ['slug'],
+        },
+      },
+    },
     (socket: WebSocket, req: FastifyRequest<{ Params: { slug: string } }>) => {
       const { slug } = req.params
 
@@ -148,16 +157,10 @@ export async function ownerWsPlugin(
               return
             } else {
               // 'not_found' — DB was wiped or slug never registered on this instance.
-              // If the relay requires a registrationToken and the client passed it,
-              // treat this the same as a fresh registration (re-issue a token).
-              if (config.registrationToken) {
-                finalToken = issueSlugToken(slug, config.jwtSecret)
-                await storage.registerSlug(slug, finalToken, tokenExpiresAt())
-              } else {
-                sendError(socket, 'INVALID_TOKEN', 'Slug not found — please re-register')
-                socket.close()
-                return
-              }
+              // Allow re-registration so clients survive relay restarts without
+              // manual token clearing. The 48-bit slug entropy is sufficient protection.
+              finalToken = issueSlugToken(slug, config.jwtSecret)
+              await storage.registerSlug(slug, finalToken, tokenExpiresAt())
             }
           } else {
             // First registration: issue a new token
@@ -185,7 +188,7 @@ export async function ownerWsPlugin(
           registered = true
           ownerSlug = slug
 
-          const conduitUrl = `${config.relayProto}://${config.relayDomain}/conduit/${slug}/`
+          const conduitUrl = `${config.relayProto}://${config.relayDomain}/${slug}/`
           const registeredMsg: TunnelRegistered = {
             type: 'registered',
             slug,

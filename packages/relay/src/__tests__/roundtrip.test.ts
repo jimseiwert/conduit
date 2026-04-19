@@ -26,7 +26,7 @@ import type { RelayConfig } from '../config.js'
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const TEST_JWT_SECRET = 'test-roundtrip-secret'
-const SLUG = 'roundtrip-test'
+const SLUG = 'ws-aa11bb22cc33'
 
 const defaultConfig: RelayConfig = {
   port: 0,
@@ -70,7 +70,7 @@ function connectOwner(
   replyWith: (req: IncomingRequest) => { status: number; body: string; headers?: Record<string, string> },
 ): Promise<{ token: string; teardown: () => void }> {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(`${wsBase}/conduit/${slug}`)
+    const ws = new WebSocket(`${wsBase}/${slug}`)
     let resolved = false
 
     ws.on('open', () => {
@@ -138,7 +138,7 @@ function connectOwner(
  */
 function httpGet(base: string, slug: string, path = '/'): Promise<{ status: number; body: string }> {
   return new Promise((resolve, reject) => {
-    const url = new URL(`${base}/conduit/${slug}${path}`)
+    const url = new URL(`${base}/${slug}${path}`)
     const req = http.get({ hostname: url.hostname, port: Number(url.port), path: url.pathname }, (res) => {
       let body = ''
       res.on('data', (c: Buffer) => { body += c.toString() })
@@ -222,7 +222,7 @@ describe('Round-trip: no owner connected', () => {
   afterEach(async () => { await ctx.stop() })
 
   test('returns 502 when no owner is connected', async () => {
-    const result = await httpGet(ctx.httpBase, 'nonexistent-slug')
+    const result = await httpGet(ctx.httpBase, 'ws-000000000000')
     expect(result.status).toBe(502)
   })
 })

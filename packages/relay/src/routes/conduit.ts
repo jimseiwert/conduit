@@ -60,15 +60,15 @@ export async function conduitRoutes(
   const methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']
 
   async function conduitHandler(
-    req: FastifyRequest<{ Params: { '*': string } }>,
+    req: FastifyRequest<{ Params: { slug: string; '*'?: string } }>,
     reply: FastifyReply,
   ): Promise<unknown> {
-    const parts = (req.params['*'] ?? '').split('/')
-    const slug = parts[0] ?? ''
-    if (!slug) {
-      return reply.code(400).header('content-type', 'application/json').send({ error: 'Missing slug' })
+    const slug = req.params['slug'] ?? ''
+    if (!slug.match(/^ws-[a-f0-9]+$/)) {
+      return reply.code(404).send({ error: 'Not found' })
     }
-    const path = '/' + parts.slice(1).join('/')
+    const wildcard = req.params['*'] ?? ''
+    const path = wildcard ? '/' + wildcard : '/'
 
     // 1. Look up owner WebSocket
     const ownerWs = registry.getOwner(slug)
@@ -218,9 +218,17 @@ export async function conduitRoutes(
     return reply.send()
   }
 
-  app.route<{ Params: { '*': string } }>({
+  // Root: /<slug>/ (no subpath)
+  app.route<{ Params: { slug: string } }>({
     method: methods,
-    url: '/conduit/*',
+    url: '/:slug/',
+    handler: conduitHandler,
+  })
+
+  // With subpath: /<slug>/path/to/resource
+  app.route<{ Params: { slug: string; '*': string } }>({
+    method: methods,
+    url: '/:slug/*',
     handler: conduitHandler,
   })
 }
