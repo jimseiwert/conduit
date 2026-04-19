@@ -6,7 +6,8 @@ import { ConduitClient } from '../ws/client.js'
 import { App } from '../ui/App.js'
 
 const DEFAULT_RELAY = 'wss://relay.conduitrelay.com'
-const VERSION = process.env['VERSION'] ?? '1.0.0'
+// Must use dot notation so bun --define can replace at compile time
+const VERSION = process.env.VERSION ?? '1.0.0'
 
 export async function cmdStart(args: {
   port?: number

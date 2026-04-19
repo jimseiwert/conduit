@@ -77,6 +77,8 @@ export function App({ slug, url: initialUrl, port, client, version = '1.0.0' }: 
           e.request.id === completed.requestId ? { ...e, completed } : e
         )
       )
+      // Re-fetch the full record now that response data is stored on the relay
+      client.sendFetch([completed.requestId])
     }
 
     clientAny.events.onWatcherCount = (count: number) => {
