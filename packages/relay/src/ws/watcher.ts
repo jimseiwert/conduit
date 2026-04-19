@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify'
 import type { WebSocket } from 'ws'
+import jwt from 'jsonwebtoken'
 import {
   ReplayRequestSchema,
   FetchRequestsSchema,
@@ -58,17 +59,30 @@ export async function watcherWsPlugin(
 
       const validity = await storage.validateSlug(slug, token)
       if (validity !== 'valid') {
-        const code: TunnelError['code'] =
-          validity === 'expired' ? 'INVALID_TOKEN' : 'AUTH_REQUIRED'
-        const message =
-          validity === 'expired'
-            ? 'Token expired — run conduit token refresh'
-            : validity === 'invalid'
-              ? 'Invalid token for this slug'
-              : 'Slug not found'
-        sendError(socket, code, message)
-        socket.close()
-        return
+        // Also accept user tokens issued by browser login (have userId claim)
+        let allowedAsUser = false
+        try {
+          const payload = jwt.verify(token, config.jwtSecret) as Record<string, unknown>
+          if (typeof payload['userId'] === 'string') {
+            allowedAsUser = true
+          }
+        } catch {
+          // Invalid user token — fall through to error
+        }
+
+        if (!allowedAsUser) {
+          const code: TunnelError['code'] =
+            validity === 'expired' ? 'INVALID_TOKEN' : 'AUTH_REQUIRED'
+          const message =
+            validity === 'expired'
+              ? 'Token expired — run conduit token refresh'
+              : validity === 'invalid'
+                ? 'Invalid token for this slug'
+                : 'Slug not found'
+          sendError(socket, code, message)
+          socket.close()
+          return
+        }
       }
 
       // Register as watcher

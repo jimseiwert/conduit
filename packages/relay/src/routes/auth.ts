@@ -312,7 +312,7 @@ function redirectToClient(
     const callbackUrl = `http://localhost:${port}/auth/callback?token=${encodeURIComponent(token)}`
     return reply.redirect(callbackUrl)
   } else {
-    const callbackUrl = `vscode://conduit.conduit/auth-callback?token=${encodeURIComponent(token)}`
+    const callbackUrl = `vscode://jimseiwert.conduit-relay/auth-callback?token=${encodeURIComponent(token)}`
     return reply.redirect(callbackUrl)
   }
 }

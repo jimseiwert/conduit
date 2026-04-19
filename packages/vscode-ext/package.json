@@ -2,7 +2,7 @@
   "name": "conduit-relay",
   "displayName": "Conduit Relay",
   "description": "Live HTTP request inspection and replay for your local server. Stream tunnel traffic directly into VS Code.",
-  "version": "1.0.21",
+  "version": "1.0.22",
   "publisher": "jimseiwert",
   "icon": "media/icon.png",
   "galleryBanner": { "color": "#0F172A", "theme": "dark" },
@@ -29,11 +29,11 @@
       ]
     },
     "commands": [
-      { "command": "conduit.connect", "title": "Connect Conduit" },
-      { "command": "conduit.disconnect", "title": "Disconnect Conduit" },
-      { "command": "conduit.login", "title": "Login (OIDC)" },
-      { "command": "conduit.replay", "title": "Replay Request" },
-      { "command": "conduit.refresh", "title": "Refresh" }
+      { "command": "conduit.connect", "title": "Conduit: Connect" },
+      { "command": "conduit.disconnect", "title": "Conduit: Disconnect" },
+      { "command": "conduit.logout", "title": "Conduit: Clear Stored Token" },
+      { "command": "conduit.replay", "title": "Conduit: Replay Request" },
+      { "command": "conduit.refresh", "title": "Conduit: Refresh" }
     ],
     "configuration": {
       "title": "Conduit",

@@ -35,49 +35,52 @@ export class WatcherClient {
   public requests: RequestItem[] = []
   public onUpdate: (() => void) | null = null
 
-  constructor(private statusBar: StatusBar) {}
+  constructor(
+    private statusBar: StatusBar,
+    private secrets: vscode.SecretStorage,
+  ) {}
 
   // ─── Public API ─────────────────────────────────────────────────────────────
 
   /**
    * Attempt auto-connect on extension activation.
-   * Reads .conduit slug and CONDUIT_TOKEN; silently aborts if either is missing.
+   * Reads .conduit slug, then tries .env → SecretStorage for token.
+   * Silently aborts if slug or token cannot be resolved.
    */
   async tryAutoConnect(): Promise<void> {
     const cfg = this.readConduitConfig()
-    if (!cfg || !cfg.token) {
-      // No .conduit file or no token yet — stay disconnected silently
-      return
-    }
+    if (!cfg) return
+
     this.slug = cfg.slug
-    this.token = cfg.token
-    if (cfg.relayUrl) {
-      this.relayUrl = cfg.relayUrl
-    }
+    if (cfg.relayUrl) this.relayUrl = cfg.relayUrl
+
+    const token = cfg.token ?? await this.secrets.get(`conduit.token.${cfg.slug}`)
+    if (!token) return
+
+    this.token = token
     await this.connect()
   }
 
   /**
    * Connect to the relay as a watcher.
-   * Reads config + prompts user for any missing values.
+   * Token resolution order: .env → SecretStorage → browser login → manual entry.
    * Opens WebSocket to {relayUrl}/conduit/{slug}/watch.
    */
   async connect(): Promise<void> {
     this.intentionalDisconnect = false
 
-    // Resolve relay URL: .env CONDUIT_RELAY_URL > VS Code setting > default
     const vsConfig = vscode.workspace.getConfiguration('conduit')
     let relayUrl: string = this.relayUrl
       ?? vsConfig.get<string>('relayUrl')
       ?? 'wss://relay.conduitrelay.com'
 
-    // Resolve slug + relay URL from .conduit / .env
+    // Resolve slug
     if (!this.slug) {
       const cfg = this.readConduitConfig()
       if (cfg) {
         this.slug = cfg.slug
         if (cfg.token) this.token = cfg.token
-        if (cfg.relayUrl) this.relayUrl = cfg.relayUrl
+        if (cfg.relayUrl) { this.relayUrl = cfg.relayUrl; relayUrl = cfg.relayUrl }
       } else {
         const entered = await vscode.window.showInputBox({
           prompt: 'Enter conduit slug (from .conduit file)',
@@ -88,18 +91,37 @@ export class WatcherClient {
       }
     }
 
-    // Resolve token — only prompt if not found in .env
+    // Resolve token: .env → SecretStorage → ask
     if (!this.token) {
       const cfg = this.readConduitConfig()
       if (cfg?.token) {
         this.token = cfg.token
       } else {
-        const entered = await vscode.window.showInputBox({
-          prompt: 'Enter CONDUIT_TOKEN (run `conduit start` first to generate one)',
-          password: true,
-        })
-        if (!entered) return
-        this.token = entered
+        const stored = await this.secrets.get(`conduit.token.${this.slug}`)
+        if (stored) {
+          this.token = stored
+        } else {
+          const choice = await vscode.window.showInformationMessage(
+            `Conduit: No token found for "${this.slug}". How would you like to authenticate?`,
+            'Login with Browser',
+            'Enter Token',
+          )
+          if (choice === 'Login with Browser') {
+            await this._openBrowserLogin(relayUrl)
+            // URI handler will call handleAuthCallback → connect
+            return
+          } else if (choice === 'Enter Token') {
+            const entered = await vscode.window.showInputBox({
+              prompt: 'Paste your CONDUIT_TOKEN (from the .env file where conduit start was run)',
+              password: true,
+            })
+            if (!entered) return
+            this.token = entered
+            await this.secrets.store(`conduit.token.${this.slug}`, entered)
+          } else {
+            return
+          }
+        }
       }
     }
 
@@ -121,18 +143,26 @@ export class WatcherClient {
     this.onUpdate?.()
   }
 
-  /**
-   * Open the relay login page in the system browser.
-   * Relay auth flow issues a JWT that the user stores as CONDUIT_TOKEN.
-   */
-  async login(): Promise<void> {
-    const vsConfig = vscode.workspace.getConfiguration('conduit')
-    const relayUrl: string = vsConfig.get('relayUrl') ?? 'wss://relay.conduitrelay.com'
+  /** Called by the VS Code URI handler after browser auth completes. */
+  async handleAuthCallback(token: string): Promise<void> {
+    this.token = token
+    if (this.slug) {
+      await this.secrets.store(`conduit.token.${this.slug}`, token)
+    }
+    if (!this.intentionalDisconnect) {
+      await this.connect()
+    }
+  }
 
-    // Convert wss:// → https:// for the browser URL
-    const httpBase = relayUrl.replace(/^wss?:\/\//, (m) => (m.startsWith('wss') ? 'https://' : 'http://'))
-    const loginUrl = `${httpBase}/auth/login?clientType=vscode`
-    await vscode.env.openExternal(vscode.Uri.parse(loginUrl))
+  /**
+   * Clear the stored token for the current slug (logout).
+   * Forces the user to re-authenticate on next connect.
+   */
+  async clearStoredToken(): Promise<void> {
+    if (this.slug) {
+      await this.secrets.delete(`conduit.token.${this.slug}`)
+    }
+    this.token = null
   }
 
   /**
@@ -149,6 +179,13 @@ export class WatcherClient {
   }
 
   // ─── Private helpers ─────────────────────────────────────────────────────────
+
+  private async _openBrowserLogin(relayUrl: string): Promise<void> {
+    const httpBase = relayUrl.replace(/^wss?:\/\//, (m) => (m.startsWith('wss') ? 'https://' : 'http://'))
+    const loginUrl = `${httpBase}/auth/login?clientType=vscode`
+    await vscode.env.openExternal(vscode.Uri.parse(loginUrl))
+    vscode.window.showInformationMessage('Conduit: Complete login in your browser — you will be connected automatically.')
+  }
 
   /**
    * Open (or reopen) the WebSocket connection to the relay watcher endpoint.
@@ -167,7 +204,7 @@ export class WatcherClient {
     this.ws = ws
 
     ws.on('open', () => {
-      this.reconnectDelay = 1000 // reset backoff on successful connect
+      this.reconnectDelay = 1000
       this.statusBar.setConnected(this.slug ?? url, this.watcherCount)
       this.onUpdate?.()
     })
@@ -181,19 +218,16 @@ export class WatcherClient {
       if (this.intentionalDisconnect) {
         return
       }
-      // Unexpected close — schedule reconnect with exponential backoff
       this.statusBar.setReconnecting()
       this._scheduleReconnect(url, token)
     })
 
     ws.on('error', (err: Error) => {
-      // Log silently; close event will fire after error and trigger reconnect
       console.error('[Conduit] WebSocket error:', err.message)
     })
   }
 
   private _handleMessage(data: WebSocket.RawData): void {
-    // Ignore binary frames (stream body chunks — watchers don't process them)
     if (data instanceof Buffer || data instanceof ArrayBuffer) {
       return
     }
@@ -207,7 +241,6 @@ export class WatcherClient {
 
     switch (parsed.type) {
       case 'request': {
-        // Incoming request — add to list as in-flight (status null)
         const req = parsed as IncomingRequest
         this.requests.unshift({
           id: req.id,
@@ -217,7 +250,6 @@ export class WatcherClient {
           durationMs: null,
           ts: req.ts,
         })
-        // Trim to ring-buffer size
         if (this.requests.length > MAX_REQUESTS) {
           this.requests = this.requests.slice(0, MAX_REQUESTS)
         }
@@ -226,7 +258,6 @@ export class WatcherClient {
       }
 
       case 'completed': {
-        // Request finished — update matching entry with status + duration
         const comp = parsed as RequestCompleted
         const idx = this.requests.findIndex((r) => r.id === comp.requestId)
         if (idx !== -1) {
@@ -236,7 +267,6 @@ export class WatcherClient {
             durationMs: comp.durationMs,
           }
         } else {
-          // Completed event arrived before request event (rare) — insert directly
           this.requests.unshift({
             id: comp.requestId,
             method: comp.method,
@@ -259,7 +289,6 @@ export class WatcherClient {
       }
 
       case 'requestRecords': {
-        // Backfill from relay ring buffer — merge without duplicating
         const records = (parsed as RequestRecords).records
         for (const rec of records) {
           if (!this.requests.find((r) => r.id === rec.id)) {
@@ -273,7 +302,6 @@ export class WatcherClient {
             })
           }
         }
-        // Re-sort descending by timestamp
         this.requests.sort((a, b) => b.ts - a.ts)
         if (this.requests.length > MAX_REQUESTS) {
           this.requests = this.requests.slice(0, MAX_REQUESTS)
@@ -294,7 +322,6 @@ export class WatcherClient {
         break
       }
 
-      // 'registered' is an owner-only message; watchers ignore it
       default:
         break
     }
@@ -305,12 +332,9 @@ export class WatcherClient {
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null
       if (!this.intentionalDisconnect) {
-        // Re-read token from .env on each reconnect — the CLI may have refreshed it
         const fresh = this.readConduitConfig()
         const token = fresh?.token ?? _staleToken
-        if (fresh?.relayUrl) {
-          this.relayUrl = fresh.relayUrl
-        }
+        if (fresh?.relayUrl) this.relayUrl = fresh.relayUrl
         this._openSocket(url, token)
         this.reconnectDelay = Math.min(this.reconnectDelay * 2, MAX_RECONNECT_DELAY_MS)
       }
@@ -327,14 +351,11 @@ export class WatcherClient {
   /**
    * Read the .conduit slug from the workspace config file and the CONDUIT_TOKEN
    * and CONDUIT_RELAY_URL from the process environment or workspace .env file.
+   * Returns { slug, token: null, relayUrl? } when slug is found but token is not.
    */
   private readConduitConfig(): { slug: string; token: string | null; relayUrl?: string } | null {
     const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
-    if (!root) {
-      console.log('[Conduit] readConduitConfig: no workspace folder open')
-      return null
-    }
-    console.log('[Conduit] readConduitConfig: reading from', root)
+    if (!root) return null
 
     const vsConfig = vscode.workspace.getConfiguration('conduit')
     const configFile: string = vsConfig.get('configFile') ?? '.conduit'
@@ -344,7 +365,6 @@ export class WatcherClient {
       return null
     }
 
-    // Parse slug from .conduit file
     let slug: string | null = null
     try {
       const content = fs.readFileSync(conduitFilePath, 'utf8').trim()
@@ -354,21 +374,15 @@ export class WatcherClient {
           slug = json.slug
         }
       } catch {
-        // Not JSON — treat first non-empty line as the slug
         const firstLine = content.split(/\r?\n/).find((l) => l.trim().length > 0)
-        if (firstLine) {
-          slug = firstLine.trim()
-        }
+        if (firstLine) slug = firstLine.trim()
       }
     } catch {
       return null
     }
 
-    if (!slug) {
-      return null
-    }
+    if (!slug) return null
 
-    // Parse .env file once — extract CONDUIT_TOKEN and CONDUIT_RELAY_URL
     let token: string | null = process.env['CONDUIT_TOKEN'] ?? null
     let relayUrl: string | undefined = process.env['CONDUIT_RELAY_URL'] ?? undefined
 
@@ -379,20 +393,15 @@ export class WatcherClient {
           const envContent = fs.readFileSync(envPath, 'utf8')
           for (const line of envContent.split(/\r?\n/)) {
             const trimmed = line.trim()
-            if (trimmed.startsWith('#') || !trimmed.includes('=')) {
-              continue
-            }
+            if (trimmed.startsWith('#') || !trimmed.includes('=')) continue
             const eqIdx = trimmed.indexOf('=')
             const key = trimmed.slice(0, eqIdx).trim()
             const val = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, '')
-            if (key === 'CONDUIT_TOKEN' && !token) {
-              token = val
-            } else if (key === 'CONDUIT_RELAY_URL' && !relayUrl) {
-              relayUrl = val
-            }
+            if (key === 'CONDUIT_TOKEN' && !token) token = val
+            else if (key === 'CONDUIT_RELAY_URL' && !relayUrl) relayUrl = val
           }
         } catch {
-          // .env read failure is non-fatal
+          // non-fatal
         }
       }
     }
