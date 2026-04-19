@@ -2,6 +2,14 @@ import { loadConfig } from './config.js'
 import { createStorageAdapter } from './storage/index.js'
 import { createServer } from './server.js'
 
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled promise rejection (non-fatal):', reason)
+})
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception (non-fatal):', err)
+})
+
 const config = loadConfig()
 const storage = await createStorageAdapter(config)
 const app = await createServer(config, storage)

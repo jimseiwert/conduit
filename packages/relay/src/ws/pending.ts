@@ -10,6 +10,13 @@ interface PendingEntry {
   pendingResponse: ForwardResponse | null
   /** Called when the END stream frame (0x01) is received. */
   streamResolve?: () => void
+  /**
+   * True when the END binary frame arrived before the JSON response.
+   * resolve() checks this flag and fires streamResolve immediately instead of
+   * waiting for endStream() — fixes the always-present ordering race where
+   * END is enqueued before the JSON response over the same WebSocket.
+   */
+  streamEnded: boolean
   /** The conduit slug this request belongs to, for rejectAll support. */
   slug: string
 }
@@ -44,6 +51,7 @@ export class PendingRequests {
         timer,
         chunks: [],
         pendingResponse: null,
+        streamEnded: false,
         slug,
       }
 
@@ -72,21 +80,32 @@ export class PendingRequests {
       clearTimeout(entry.timer)
       this.cleanup(requestId)
       entry.resolve(resp)
-    } else {
-      // Streaming body — hold until all binary frames arrive
-      entry.pendingResponse = resp
-      entry.streamResolve = () => {
-        // Assemble accumulated chunks into a base64 body on the response
-        const assembled = Buffer.concat(entry.chunks)
-        const finalResp: ForwardResponse = {
-          ...resp,
-          body: assembled.toString('base64'),
-          bodyEncoding: 'base64',
-        }
-        clearTimeout(entry.timer)
-        this.cleanup(requestId)
-        entry.resolve(finalResp)
+      return
+    }
+
+    // Streaming body: assemble chunks into a base64 response.
+    // The binary END frame is always sent before this JSON response (same WS
+    // connection, ordered delivery), so streamEnded is typically already true.
+    // We handle both orderings to be safe.
+    const fire = () => {
+      const assembled = Buffer.concat(entry.chunks)
+      const finalResp: ForwardResponse = {
+        ...resp,
+        body: assembled.length > 0 ? assembled.toString('base64') : null,
+        bodyEncoding: assembled.length > 0 ? 'base64' : 'utf8',
       }
+      clearTimeout(entry.timer)
+      this.cleanup(requestId)
+      entry.resolve(finalResp)
+    }
+
+    entry.pendingResponse = resp
+    if (entry.streamEnded) {
+      // END frame already arrived before this JSON response — resolve immediately
+      fire()
+    } else {
+      // END frame hasn't arrived yet — store the callback for endStream()
+      entry.streamResolve = fire
     }
   }
 
@@ -103,8 +122,14 @@ export class PendingRequests {
    */
   endStream(requestId: string): void {
     const entry = this.pending.get(requestId)
-    if (!entry?.streamResolve) return
-    entry.streamResolve()
+    if (!entry) return
+    if (entry.streamResolve) {
+      // JSON response already arrived — fire immediately
+      entry.streamResolve()
+    } else {
+      // JSON response hasn't arrived yet — mark so resolve() fires immediately when it does
+      entry.streamEnded = true
+    }
   }
 
   /** Rejects the pending promise with the given error. */

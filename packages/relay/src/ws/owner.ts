@@ -65,6 +65,7 @@ export async function ownerWsPlugin(
       }
 
       socket.on('message', async (rawData: unknown, isBinary: boolean) => {
+        try {
         // ── Binary frame: route to pending requests map ───────────────────
         if (isBinary) {
           const buf = Buffer.isBuffer(rawData)
@@ -310,6 +311,10 @@ export async function ownerWsPlugin(
           }
         } catch {
           sendError(socket, 'PARSE_ERROR', 'Failed to process message')
+        }
+        } catch (err) {
+          app.log.error({ err }, 'Owner WebSocket message handler unexpected error')
+          sendError(socket, 'PARSE_ERROR', 'Internal server error')
         }
       })
 
