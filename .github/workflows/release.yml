@@ -214,7 +214,7 @@ jobs:
   release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [build-cli, build-relay-image, build-vscode-ext]
+    needs: [resolve-version, build-cli, build-relay-image, build-vscode-ext]
     steps:
       - uses: actions/checkout@v4
 
