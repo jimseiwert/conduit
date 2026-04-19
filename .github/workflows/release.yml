@@ -215,7 +215,8 @@ jobs:
           flyctl deploy \
             --image ghcr.io/${{ github.repository_owner }}/conduit-relay:${{ needs.resolve-version.outputs.version }} \
             --strategy rolling \
-            --wait-timeout 300
+            --wait-timeout 300 \
+            --yes
 
       - name: Rollback on failure
         if: failure()
