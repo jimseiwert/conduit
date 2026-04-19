@@ -70,7 +70,8 @@ jobs:
       - name: Build CLI binary
         working-directory: packages/cli
         run: |
-          bun build --compile src/index.ts --outfile dist/${{ matrix.binary }} --target bun --define 'process.env.VERSION="${{ needs.resolve-version.outputs.version }}"'
+          echo "export const CLI_VERSION = '${{ needs.resolve-version.outputs.version }}'" > src/version.ts
+          bun build --compile src/index.ts --outfile dist/${{ matrix.binary }} --target bun
 
       - name: Import Apple Developer Certificate (macOS)
         if: runner.os == 'macOS'

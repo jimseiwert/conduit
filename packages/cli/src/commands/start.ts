@@ -5,9 +5,9 @@ import { loadConfig, writeConduitConfig, writeToken, ConfigMismatchError } from 
 import { ConduitClient } from '../ws/client.js'
 import { App } from '../ui/App.js'
 
+import { CLI_VERSION } from '../version.js'
+
 const DEFAULT_RELAY = 'wss://relay.conduitrelay.com'
-// Must use dot notation so bun --define can replace at compile time
-const VERSION = process.env.VERSION ?? '1.0.0'
 
 export async function cmdStart(args: {
   port?: number
@@ -104,7 +104,7 @@ export async function cmdStart(args: {
       url: currentUrl,
       port,
       client,
-      version: VERSION,
+      version: CLI_VERSION,
     })
   )
 

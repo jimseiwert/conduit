@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import { ConfigMismatchError } from './config.js'
-
-const VERSION = process.env.VERSION ?? '1.0.0'
+import { CLI_VERSION as VERSION } from './version.js'
 
 function printHelp(): void {
   console.log(`
