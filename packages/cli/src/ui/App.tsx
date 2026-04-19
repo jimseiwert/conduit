@@ -14,7 +14,7 @@ interface AppProps {
   version?: string
 }
 
-export function App({ slug, url: initialUrl, port, client, version = '1.0.0' }: AppProps) {
+export function App({ slug, url: initialUrl, port, client, version = '0.0.0-dev' }: AppProps) {
   const { exit } = useApp()
 
   const [connected, setConnected] = useState(false)

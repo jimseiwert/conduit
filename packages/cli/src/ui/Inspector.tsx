@@ -129,7 +129,7 @@ function buildLines(
     if (!resBody && record) {
       lines.push({ text: '  (empty)', dim: true })
     } else if (!resBody) {
-      lines.push({ text: '  (not yet fetched — press f to load)', dim: true })
+      lines.push({ text: '  (loading...)', dim: true })
     } else {
       lines.push(...prettyBody(resBody))
       if (record?.responseBodyTruncated) {

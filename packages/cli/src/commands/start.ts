@@ -36,7 +36,7 @@ export async function cmdStart(args: {
       const httpEnabled = args.http ?? false
 
       // We'll create config after successful registration
-      await startWithRegistration({ slug, port, httpEnabled, relayUrl, cwd, configFile: args.config })
+      await startWithRegistration({ slug, port, httpEnabled, relayUrl, cwd, configFile: args.config, version: CLI_VERSION })
       return
     }
 
@@ -118,8 +118,9 @@ async function startWithRegistration(opts: {
   relayUrl: string
   cwd: string
   configFile?: string
+  version?: string
 }) {
-  const { slug, port, httpEnabled, relayUrl, cwd, configFile } = opts
+  const { slug, port, httpEnabled, relayUrl, cwd, configFile, version } = opts
   const configPath = configFile ?? `${cwd}/.conduit`
 
   let registeredUrl = `${relayUrl.replace(/^wss?:\/\//, 'https://')}/conduit/${slug}/`
@@ -164,6 +165,7 @@ async function startWithRegistration(opts: {
       url: registeredUrl,
       port,
       client,
+      version,
     })
   )
 
