@@ -63,7 +63,7 @@ export async function cmdStart(args: {
     }
   }
 
-  let currentUrl = `${relayUrl.replace(/^wss?:\/\//, 'https://')}/conduit/${slug}`
+  let currentUrl = `${relayUrl.replace(/^wss?:\/\//, 'https://')}/conduit/${slug}/`
 
   const events = {
     onConnected(_slug: string, token: string, url: string) {
@@ -119,7 +119,7 @@ async function startWithRegistration(opts: {
   const { slug, port, httpEnabled, relayUrl, cwd, configFile } = opts
   const configPath = configFile ?? `${cwd}/.conduit`
 
-  let registeredUrl = `${relayUrl.replace(/^wss?:\/\//, 'https://')}/conduit/${slug}`
+  let registeredUrl = `${relayUrl.replace(/^wss?:\/\//, 'https://')}/conduit/${slug}/`
 
   const events = {
     onConnected(_slug: string, token: string, url: string) {

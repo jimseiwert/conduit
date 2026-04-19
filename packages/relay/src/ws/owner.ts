@@ -185,7 +185,7 @@ export async function ownerWsPlugin(
           registered = true
           ownerSlug = slug
 
-          const conduitUrl = `${config.relayProto}://${config.relayDomain}/conduit/${slug}`
+          const conduitUrl = `${config.relayProto}://${config.relayDomain}/conduit/${slug}/`
           const registeredMsg: TunnelRegistered = {
             type: 'registered',
             slug,
