@@ -52,7 +52,7 @@ conduit start --slug myapp --port 3000
 Your public URL appears in the TUI header. Send a request to it — it shows up immediately.
 
 ```
-https://myapp.conduitrelay.com
+https://relay.conduitrelay.com/conduit/myapp
 ```
 
 On your next run, conduit reads `.conduit` and reconnects automatically. No flags needed.
@@ -78,7 +78,7 @@ conduit replay <id>         Replay a stored request
 conduit token refresh       Refresh your slug token before it expires
 
 Options (start):
-  --slug <slug>             Tunnel slug / subdomain
+  --slug <slug>             Tunnel slug (appears in the public URL path)
   --port <port>             Local port to forward to (default: 3000)
   --http                    Accept HTTP in addition to HTTPS
   --relay <url>             Custom relay WebSocket URL
