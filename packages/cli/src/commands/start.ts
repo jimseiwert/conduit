@@ -1,7 +1,7 @@
 import React from 'react'
 import { render } from 'ink'
 import jwt from 'jsonwebtoken'
-import { loadConfig, writeConduitConfig, writeToken, ConfigMismatchError } from '../config.js'
+import { loadProjectConfig, saveProjectConfig, generateSlug } from '../config.js'
 import { ConduitClient } from '../ws/client.js'
 import { App } from '../ui/App.js'
 
@@ -11,7 +11,7 @@ const DEFAULT_RELAY = 'wss://relay.conduitrelay.com'
 
 export async function cmdStart(args: {
   port?: number
-  slug?: string
+  slug?: string  // kept for backward compat but ignored if project already registered
   http?: boolean
   config?: string
   relay?: string
@@ -19,40 +19,37 @@ export async function cmdStart(args: {
   const cwd = process.cwd()
   const relayUrl = args.relay ?? process.env['CONDUIT_RELAY_URL'] ?? DEFAULT_RELAY
 
-  let loadedConfig: ReturnType<typeof loadConfig> | null = null
-
-  try {
-    loadedConfig = loadConfig({ configFile: args.config, cwd })
-  } catch (err) {
-    if (err instanceof ConfigMismatchError) {
-      console.error(`Config error: ${err.message}`)
-      process.exit(1)
-    }
-
-    // Config file not found — if slug provided, we can register fresh
-    if (args.slug) {
-      const port = args.port ?? 3000
-      const slug = args.slug
-      const httpEnabled = args.http ?? false
-
-      // We'll create config after successful registration
-      await startWithRegistration({ slug, port, httpEnabled, relayUrl, cwd, configFile: args.config, version: CLI_VERSION })
-      return
-    }
-
-    console.error('No .conduit config found. Run `conduit start --slug <your-slug>` to register.')
-    process.exit(1)
+  // Check if running in VS Code integrated terminal
+  const inVscode = !!process.env['VSCODE_PID'] || process.env['TERM_PROGRAM'] === 'vscode'
+  if (inVscode) {
+    console.log('Tip: The Conduit VS Code extension can show live requests directly in your editor.')
   }
 
-  const config = loadedConfig!
-  const slug = args.slug ?? config.conduit.slug
-  const port = args.port ?? config.conduit.port
-  const httpEnabled = args.http ?? config.conduit.httpEnabled
+  // Load or create project config
+  let entry = loadProjectConfig(cwd)
+  const isFirstRun = !entry
+
+  if (!entry) {
+    const slug = generateSlug()
+    const port = args.port ?? 3000
+    const httpEnabled = args.http ?? false
+    entry = { slug, token: null, port, httpEnabled, relayUrl }
+    saveProjectConfig(cwd, entry)
+  } else {
+    // Apply any CLI overrides
+    if (args.port !== undefined) entry.port = args.port
+    if (args.http !== undefined) entry.httpEnabled = args.http
+    if (args.relay) entry.relayUrl = args.relay
+  }
+
+  const { slug, port, httpEnabled } = entry
+  const token = entry.token ?? null
+  const effectiveRelay = entry.relayUrl ?? relayUrl
 
   // Check token expiry
-  if (config.token) {
+  if (token) {
     try {
-      const decoded = jwt.decode(config.token) as Record<string, unknown> | null
+      const decoded = jwt.decode(token) as Record<string, unknown> | null
       if (decoded && typeof decoded['exp'] === 'number') {
         const nowSec = Date.now() / 1000
         if (decoded['exp'] < nowSec) {
@@ -65,11 +62,16 @@ export async function cmdStart(args: {
     }
   }
 
-  let currentUrl = `${relayUrl.replace(/^wss?:\/\//, 'https://')}/conduit/${slug}/`
+  let currentUrl = `${effectiveRelay.replace(/^wss?:\/\//, 'https://')}/${slug}/`
 
   const events = {
-    onConnected(_slug: string, token: string, url: string) {
+    onConnected(_slug: string, newToken: string, url: string) {
       currentUrl = url
+      // Persist the issued token back to home config
+      const fresh = loadProjectConfig(cwd)
+      if (fresh) {
+        saveProjectConfig(cwd, { ...fresh, token: newToken, relayUrl: effectiveRelay })
+      }
     },
     onRequest() {},
     onRequestChunk() {},
@@ -84,9 +86,9 @@ export async function cmdStart(args: {
   }
 
   const client = new ConduitClient(
-    relayUrl,
+    effectiveRelay,
     slug,
-    config.token,
+    token,
     {
       registrationToken: process.env['CONDUIT_REGISTRATION_TOKEN'],
       httpEnabled,
@@ -97,6 +99,10 @@ export async function cmdStart(args: {
   )
 
   client.connect()
+
+  if (isFirstRun) {
+    console.log(`New conduit registered with slug: ${slug}`)
+  }
 
   const { waitUntilExit } = render(
     React.createElement(App, {
@@ -105,67 +111,6 @@ export async function cmdStart(args: {
       port,
       client,
       version: CLI_VERSION,
-    })
-  )
-
-  await waitUntilExit()
-}
-
-async function startWithRegistration(opts: {
-  slug: string
-  port: number
-  httpEnabled: boolean
-  relayUrl: string
-  cwd: string
-  configFile?: string
-  version?: string
-}) {
-  const { slug, port, httpEnabled, relayUrl, cwd, configFile, version } = opts
-  const configPath = configFile ?? `${cwd}/.conduit`
-
-  let registeredUrl = `${relayUrl.replace(/^wss?:\/\//, 'https://')}/conduit/${slug}/`
-
-  const events = {
-    onConnected(_slug: string, token: string, url: string) {
-      registeredUrl = url
-      // Persist config and token on first registration
-      writeConduitConfig(configPath, { slug, port, httpEnabled })
-      writeToken(cwd, token)
-    },
-    onRequest() {},
-    onRequestChunk() {},
-    onRequestEnd() {},
-    onCompleted() {},
-    onWatcherCount() {},
-    onRecords() {},
-    onError(code: string, message: string) {
-      console.error(`Relay error [${code}]: ${message}`)
-    },
-    onDisconnect() {},
-  }
-
-  const client = new ConduitClient(
-    relayUrl,
-    slug,
-    null, // no token yet — first registration
-    {
-      registrationToken: process.env['CONDUIT_REGISTRATION_TOKEN'],
-      httpEnabled,
-      port,
-      cwd,
-    },
-    events
-  )
-
-  client.connect()
-
-  const { waitUntilExit } = render(
-    React.createElement(App, {
-      slug,
-      url: registeredUrl,
-      port,
-      client,
-      version,
     })
   )
 

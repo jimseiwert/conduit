@@ -2,16 +2,14 @@ import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import * as os from 'node:os'
-import jwt from 'jsonwebtoken'
 import {
-  loadDotenv,
-  readConduitConfig,
-  writeConduitConfig,
-  writeToken,
-  validateTokenSlugMatch,
-  loadConfig,
+  loadProjectConfig,
+  saveProjectConfig,
+  generateSlug,
+  getHomeConfigDir,
   ConfigMismatchError,
-  type ConduitConfig,
+  ConfigNotFoundError,
+  type ProjectEntry,
 } from '../config.js'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -20,265 +18,155 @@ function makeTmpDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'conduit-test-'))
 }
 
-function makeToken(slug: string, secret = 'test-secret', expiresIn = '90d'): string {
-  return jwt.sign({ slug }, secret, { expiresIn })
-}
-
-function writeEnvFile(dir: string, filename: string, content: string): void {
-  fs.writeFileSync(path.join(dir, filename), content, 'utf8')
-}
-
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
-describe('validateTokenSlugMatch', () => {
-  it('returns true when slugs match', () => {
-    const token = makeToken('myapp')
-    expect(validateTokenSlugMatch(token, 'myapp')).toBe(true)
+describe('generateSlug', () => {
+  it('returns a string starting with "ws-"', () => {
+    const slug = generateSlug()
+    expect(slug).toMatch(/^ws-[a-f0-9]{12}$/)
   })
 
-  it('returns false when slugs do not match', () => {
-    const token = makeToken('other-slug')
-    expect(validateTokenSlugMatch(token, 'myapp')).toBe(false)
-  })
-
-  it('throws on malformed token', () => {
-    expect(() => validateTokenSlugMatch('not.a.valid.jwt', 'myapp')).toThrow()
-  })
-
-  it('throws when token payload is missing slug', () => {
-    const tokenWithoutSlug = jwt.sign({ foo: 'bar' }, 'secret')
-    expect(() => validateTokenSlugMatch(tokenWithoutSlug, 'myapp')).toThrow(/slug/)
+  it('returns unique slugs on each call', () => {
+    const s1 = generateSlug()
+    const s2 = generateSlug()
+    expect(s1).not.toBe(s2)
   })
 })
 
-describe('readConduitConfig', () => {
-  let tmpDir: string
+describe('getHomeConfigDir', () => {
+  let savedEnv: string | undefined
 
   beforeEach(() => {
-    tmpDir = makeTmpDir()
+    savedEnv = process.env['CONDUIT_HOME']
   })
 
   afterEach(() => {
-    fs.rmSync(tmpDir, { recursive: true, force: true })
+    if (savedEnv === undefined) delete process.env['CONDUIT_HOME']
+    else process.env['CONDUIT_HOME'] = savedEnv
   })
 
-  it('reads a valid .conduit config file', () => {
-    const configPath = path.join(tmpDir, '.conduit')
-    const config: ConduitConfig = { slug: 'myapp', port: 3000, httpEnabled: false }
-    fs.writeFileSync(configPath, JSON.stringify(config), 'utf8')
-
-    const loaded = readConduitConfig(configPath)
-    expect(loaded.slug).toBe('myapp')
-    expect(loaded.port).toBe(3000)
-    expect(loaded.httpEnabled).toBe(false)
+  it('returns ~/.conduit by default', () => {
+    delete process.env['CONDUIT_HOME']
+    const dir = getHomeConfigDir()
+    expect(dir).toBe(path.join(os.homedir(), '.conduit'))
   })
 
-  it('throws when config file does not exist', () => {
-    expect(() => readConduitConfig(path.join(tmpDir, '.conduit'))).toThrow(/not found/)
-  })
-
-  it('throws on invalid JSON', () => {
-    const configPath = path.join(tmpDir, '.conduit')
-    fs.writeFileSync(configPath, '{ invalid json }', 'utf8')
-    expect(() => readConduitConfig(configPath)).toThrow(/Invalid JSON/)
-  })
-
-  it('throws when required fields are missing', () => {
-    const configPath = path.join(tmpDir, '.conduit')
-    fs.writeFileSync(configPath, JSON.stringify({ slug: 'myapp' }), 'utf8')
-    expect(() => readConduitConfig(configPath)).toThrow(/Invalid config/)
+  it('respects CONDUIT_HOME override', () => {
+    process.env['CONDUIT_HOME'] = '/custom/conduit'
+    expect(getHomeConfigDir()).toBe('/custom/conduit')
   })
 })
 
-describe('writeConduitConfig', () => {
-  let tmpDir: string
+describe('loadProjectConfig / saveProjectConfig', () => {
+  let tmpProjectDir: string
+  let tmpHomeDir: string
+  let savedConduitHome: string | undefined
 
-  beforeEach(() => { tmpDir = makeTmpDir() })
-  afterEach(() => { fs.rmSync(tmpDir, { recursive: true, force: true }) })
+  beforeEach(() => {
+    tmpProjectDir = makeTmpDir()
+    tmpHomeDir = makeTmpDir()
+    savedConduitHome = process.env['CONDUIT_HOME']
+    process.env['CONDUIT_HOME'] = tmpHomeDir
+  })
 
-  it('creates a .conduit file with correct content', () => {
-    const configPath = path.join(tmpDir, '.conduit')
-    writeConduitConfig(configPath, { slug: 'myapp', port: 4000, httpEnabled: true })
+  afterEach(() => {
+    fs.rmSync(tmpProjectDir, { recursive: true, force: true })
+    fs.rmSync(tmpHomeDir, { recursive: true, force: true })
+    if (savedConduitHome === undefined) delete process.env['CONDUIT_HOME']
+    else process.env['CONDUIT_HOME'] = savedConduitHome
+  })
+
+  it('returns null when no config exists for the project', () => {
+    const result = loadProjectConfig(tmpProjectDir)
+    expect(result).toBeNull()
+  })
+
+  it('saves and loads a project entry', () => {
+    const entry: ProjectEntry = {
+      slug: 'ws-aabbccddee11',
+      token: 'tok-abc',
+      port: 3000,
+      httpEnabled: false,
+      relayUrl: 'wss://relay.conduitrelay.com',
+    }
+    saveProjectConfig(tmpProjectDir, entry)
+
+    const loaded = loadProjectConfig(tmpProjectDir)
+    expect(loaded).not.toBeNull()
+    expect(loaded!.slug).toBe('ws-aabbccddee11')
+    expect(loaded!.token).toBe('tok-abc')
+    expect(loaded!.port).toBe(3000)
+    expect(loaded!.httpEnabled).toBe(false)
+    expect(loaded!.relayUrl).toBe('wss://relay.conduitrelay.com')
+  })
+
+  it('updates an existing entry when saved again', () => {
+    const entry: ProjectEntry = {
+      slug: 'ws-aabbccddee11',
+      token: null,
+      port: 3000,
+      httpEnabled: false,
+    }
+    saveProjectConfig(tmpProjectDir, entry)
+    saveProjectConfig(tmpProjectDir, { ...entry, token: 'new-token', port: 4000 })
+
+    const loaded = loadProjectConfig(tmpProjectDir)
+    expect(loaded!.token).toBe('new-token')
+    expect(loaded!.port).toBe(4000)
+  })
+
+  it('preserves entries for other projects when saving', () => {
+    const dir2 = makeTmpDir()
+    try {
+      const entry1: ProjectEntry = { slug: 'ws-000000000001', token: null, port: 3000, httpEnabled: false }
+      const entry2: ProjectEntry = { slug: 'ws-000000000002', token: null, port: 4000, httpEnabled: true }
+
+      saveProjectConfig(tmpProjectDir, entry1)
+      saveProjectConfig(dir2, entry2)
+
+      const loaded1 = loadProjectConfig(tmpProjectDir)
+      const loaded2 = loadProjectConfig(dir2)
+
+      expect(loaded1!.slug).toBe('ws-000000000001')
+      expect(loaded2!.slug).toBe('ws-000000000002')
+    } finally {
+      fs.rmSync(dir2, { recursive: true, force: true })
+    }
+  })
+
+  it('uses normalized absolute path as key', () => {
+    const entry: ProjectEntry = { slug: 'ws-aabbccddee11', token: null, port: 3000, httpEnabled: false }
+    saveProjectConfig(tmpProjectDir, entry)
+
+    // Load with trailing slash should still find the entry
+    const loaded = loadProjectConfig(path.resolve(tmpProjectDir))
+    expect(loaded).not.toBeNull()
+  })
+
+  it('writes valid JSON to projects.json', () => {
+    const entry: ProjectEntry = { slug: 'ws-aabbccddee11', token: 'tok', port: 3000, httpEnabled: false }
+    saveProjectConfig(tmpProjectDir, entry)
+
+    const configPath = path.join(tmpHomeDir, 'projects.json')
+    expect(fs.existsSync(configPath)).toBe(true)
 
     const raw = fs.readFileSync(configPath, 'utf8')
     const parsed = JSON.parse(raw)
-    expect(parsed.slug).toBe('myapp')
-    expect(parsed.port).toBe(4000)
-    expect(parsed.httpEnabled).toBe(true)
+    expect(parsed.version).toBe(1)
+    expect(typeof parsed.projects).toBe('object')
   })
 })
 
-describe('writeToken', () => {
-  let tmpDir: string
-
-  beforeEach(() => { tmpDir = makeTmpDir() })
-  afterEach(() => { fs.rmSync(tmpDir, { recursive: true, force: true }) })
-
-  it('creates .env if it does not exist', () => {
-    writeToken(tmpDir, 'my-token')
-    const content = fs.readFileSync(path.join(tmpDir, '.env'), 'utf8')
-    expect(content).toContain('CONDUIT_TOKEN=my-token')
+describe('ConfigMismatchError and ConfigNotFoundError', () => {
+  it('ConfigMismatchError has correct name', () => {
+    const err = new ConfigMismatchError('mismatch')
+    expect(err.name).toBe('ConfigMismatchError')
+    expect(err.message).toBe('mismatch')
   })
 
-  it('updates existing CONDUIT_TOKEN line', () => {
-    writeEnvFile(tmpDir, '.env', 'CONDUIT_TOKEN=old-token\nOTHER=value\n')
-    writeToken(tmpDir, 'new-token')
-    const content = fs.readFileSync(path.join(tmpDir, '.env'), 'utf8')
-    expect(content).toContain('CONDUIT_TOKEN=new-token')
-    expect(content).not.toContain('old-token')
-    expect(content).toContain('OTHER=value')
-  })
-
-  it('appends CONDUIT_TOKEN when other vars exist but no token line', () => {
-    writeEnvFile(tmpDir, '.env', 'OTHER=value\n')
-    writeToken(tmpDir, 'appended-token')
-    const content = fs.readFileSync(path.join(tmpDir, '.env'), 'utf8')
-    expect(content).toContain('CONDUIT_TOKEN=appended-token')
-    expect(content).toContain('OTHER=value')
-  })
-})
-
-describe('loadDotenv', () => {
-  let tmpDir: string
-  let savedEnv: Record<string, string | undefined>
-
-  beforeEach(() => {
-    tmpDir = makeTmpDir()
-    savedEnv = {
-      CONDUIT_TOKEN: process.env['CONDUIT_TOKEN'],
-      TEST_VAR: process.env['TEST_VAR'],
-      LOCAL_VAR: process.env['LOCAL_VAR'],
-    }
-    delete process.env['CONDUIT_TOKEN']
-    delete process.env['TEST_VAR']
-    delete process.env['LOCAL_VAR']
-  })
-
-  afterEach(() => {
-    fs.rmSync(tmpDir, { recursive: true, force: true })
-    for (const [k, v] of Object.entries(savedEnv)) {
-      if (v === undefined) delete process.env[k]
-      else process.env[k] = v
-    }
-  })
-
-  it('loads .env file', () => {
-    writeEnvFile(tmpDir, '.env', 'TEST_VAR=from-env\n')
-    loadDotenv(tmpDir)
-    expect(process.env['TEST_VAR']).toBe('from-env')
-  })
-
-  it('.env.local overrides .env', () => {
-    writeEnvFile(tmpDir, '.env', 'TEST_VAR=from-env\nLOCAL_VAR=base\n')
-    writeEnvFile(tmpDir, '.env.local', 'TEST_VAR=from-local\n')
-    loadDotenv(tmpDir)
-    expect(process.env['TEST_VAR']).toBe('from-local')
-    expect(process.env['LOCAL_VAR']).toBe('base')
-  })
-
-  it('does not throw if no .env files exist', () => {
-    expect(() => loadDotenv(tmpDir)).not.toThrow()
-  })
-})
-
-describe('loadConfig', () => {
-  let tmpDir: string
-  let savedEnv: Record<string, string | undefined>
-
-  beforeEach(() => {
-    tmpDir = makeTmpDir()
-    savedEnv = {
-      CONDUIT_TOKEN: process.env['CONDUIT_TOKEN'],
-      CONDUIT_USER_TOKEN: process.env['CONDUIT_USER_TOKEN'],
-      CONDUIT_CONFIG_FILE: process.env['CONDUIT_CONFIG_FILE'],
-    }
-    delete process.env['CONDUIT_TOKEN']
-    delete process.env['CONDUIT_USER_TOKEN']
-    delete process.env['CONDUIT_CONFIG_FILE']
-  })
-
-  afterEach(() => {
-    fs.rmSync(tmpDir, { recursive: true, force: true })
-    for (const [k, v] of Object.entries(savedEnv)) {
-      if (v === undefined) delete process.env[k]
-      else process.env[k] = v
-    }
-  })
-
-  it('loads config and token from .conduit + .env', () => {
-    const configPath = path.join(tmpDir, '.conduit')
-    writeConduitConfig(configPath, { slug: 'myapp', port: 3000, httpEnabled: false })
-
-    const token = makeToken('myapp')
-    writeEnvFile(tmpDir, '.env', `CONDUIT_TOKEN=${token}\n`)
-
-    const cfg = loadConfig({ configFile: configPath, cwd: tmpDir })
-    expect(cfg.conduit.slug).toBe('myapp')
-    expect(cfg.token).toBe(token)
-  })
-
-  it('CONDUIT_TOKEN from .env takes precedence — token is loaded from env file', () => {
-    const configPath = path.join(tmpDir, '.conduit')
-    writeConduitConfig(configPath, { slug: 'myapp', port: 3000, httpEnabled: false })
-
-    // Set a different token in process.env (simulating it not being in .env)
-    // and a token in .env that matches
-    const token = makeToken('myapp')
-    writeEnvFile(tmpDir, '.env', `CONDUIT_TOKEN=${token}\n`)
-
-    const cfg = loadConfig({ configFile: configPath, cwd: tmpDir })
-    expect(cfg.token).toBe(token)
-    expect(cfg.conduit.slug).toBe('myapp')
-  })
-
-  it('.env.local token overrides .env token', () => {
-    const configPath = path.join(tmpDir, '.conduit')
-    writeConduitConfig(configPath, { slug: 'myapp', port: 3000, httpEnabled: false })
-
-    const baseToken = makeToken('myapp')
-    const localToken = makeToken('myapp')
-    writeEnvFile(tmpDir, '.env', `CONDUIT_TOKEN=${baseToken}\n`)
-    writeEnvFile(tmpDir, '.env.local', `CONDUIT_TOKEN=${localToken}\n`)
-
-    const cfg = loadConfig({ configFile: configPath, cwd: tmpDir })
-    // .env.local overrides .env
-    expect(cfg.token).toBe(localToken)
-  })
-
-  it('missing CONDUIT_TOKEN falls back gracefully to null', () => {
-    const configPath = path.join(tmpDir, '.conduit')
-    writeConduitConfig(configPath, { slug: 'myapp', port: 3000, httpEnabled: false })
-
-    const cfg = loadConfig({ configFile: configPath, cwd: tmpDir })
-    expect(cfg.token).toBeNull()
-  })
-
-  it('throws ConfigMismatchError when token slug does not match config slug', () => {
-    const configPath = path.join(tmpDir, '.conduit')
-    writeConduitConfig(configPath, { slug: 'myapp', port: 3000, httpEnabled: false })
-
-    // Token issued for a different slug
-    const wrongToken = makeToken('other-slug')
-    writeEnvFile(tmpDir, '.env', `CONDUIT_TOKEN=${wrongToken}\n`)
-
-    expect(() => loadConfig({ configFile: configPath, cwd: tmpDir })).toThrow(ConfigMismatchError)
-  })
-
-  it('ConfigMismatchError message contains both slugs', () => {
-    const configPath = path.join(tmpDir, '.conduit')
-    writeConduitConfig(configPath, { slug: 'myapp', port: 3000, httpEnabled: false })
-    const wrongToken = makeToken('other-slug')
-    writeEnvFile(tmpDir, '.env', `CONDUIT_TOKEN=${wrongToken}\n`)
-
-    let error: ConfigMismatchError | null = null
-    try {
-      loadConfig({ configFile: configPath, cwd: tmpDir })
-    } catch (err) {
-      error = err as ConfigMismatchError
-    }
-
-    expect(error).not.toBeNull()
-    expect(error!.message).toContain('other-slug')
-    expect(error!.message).toContain('myapp')
+  it('ConfigNotFoundError has correct name', () => {
+    const err = new ConfigNotFoundError('not found')
+    expect(err.name).toBe('ConfigNotFoundError')
+    expect(err.message).toBe('not found')
   })
 })

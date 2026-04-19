@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken'
-import { loadConfig, writeToken } from '../config.js'
+import { loadProjectConfig, saveProjectConfig } from '../config.js'
 
 const DEFAULT_RELAY = 'https://relay.conduitrelay.com'
 const RENEWAL_THRESHOLD_DAYS = 7
@@ -11,21 +11,19 @@ export async function cmdTokenRefresh(args: { relay?: string }) {
 
   const cwd = process.cwd()
 
-  let cfg: ReturnType<typeof loadConfig>
-  try {
-    cfg = loadConfig({ cwd })
-  } catch (err) {
-    console.error(`Config error: ${(err as Error).message}`)
+  const entry = loadProjectConfig(cwd)
+  if (!entry) {
+    console.error('No conduit project found for this directory. Run `conduit start` first.')
     process.exit(1)
   }
 
-  if (!cfg.token) {
+  if (!entry.token) {
     console.error('No CONDUIT_TOKEN found. Run `conduit start` to register a conduit first.')
     process.exit(1)
   }
 
-  const token = cfg.token
-  const slug = cfg.conduit.slug
+  const token = entry.token
+  const slug = entry.slug
 
   // Decode to check expiry
   let decoded: Record<string, unknown> | null = null
@@ -59,7 +57,7 @@ export async function cmdTokenRefresh(args: { relay?: string }) {
 
   // Attempt renewal
   try {
-    const res = await fetch(`${relayBase}/conduit/${slug}/renew`, {
+    const res = await fetch(`${relayBase}/${slug}/renew`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -80,7 +78,7 @@ export async function cmdTokenRefresh(args: { relay?: string }) {
       process.exit(1)
     }
 
-    writeToken(cwd, newToken)
+    saveProjectConfig(cwd, { ...entry, token: newToken })
 
     // Decode new token for display
     const newDecoded = jwt.decode(newToken) as Record<string, unknown> | null

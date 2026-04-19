@@ -1,5 +1,5 @@
 import { ConduitClient } from '../ws/client.js'
-import { loadConfig } from '../config.js'
+import { loadProjectConfig } from '../config.js'
 import type { RequestCompleted, RequestRecords } from '@conduit/types'
 
 const DEFAULT_RELAY = 'wss://relay.conduitrelay.com'
@@ -12,9 +12,11 @@ export async function cmdReplay(id: string, args: { relay?: string }) {
   let token: string | null = null
 
   try {
-    const cfg = loadConfig({ cwd })
-    slug = cfg.conduit.slug
-    token = cfg.token
+    const entry = loadProjectConfig(cwd)
+    if (entry) {
+      slug = entry.slug
+      token = entry.token
+    }
   } catch {
     // Not strictly required for watcher mode
   }

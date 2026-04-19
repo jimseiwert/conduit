@@ -9,7 +9,7 @@ import type {
   ForwardResponse,
 } from '@conduit/types'
 import { decodeStreamFrame, STREAM_FRAME_TYPE, encodeStreamFrame } from '@conduit/types'
-import { writeToken } from '../config.js'
+import { loadProjectConfig, saveProjectConfig } from '../config.js'
 import { forwardRequest } from './forwarder.js'
 
 export interface ClientEvents {
@@ -96,7 +96,7 @@ export class ConduitClient {
   private _connect(): void {
     if (this.closed) return
 
-    const wsUrl = `${this.relayUrl.replace(/\/+$/, '')}/conduit/${this.slug}`
+    const wsUrl = `${this.relayUrl.replace(/\/+$/, '')}/${this.slug}`
     const ws = new WebSocket(wsUrl)
     this.ws = ws
 
@@ -162,10 +162,13 @@ export class ConduitClient {
     switch (msg.type) {
       case 'registered': {
         this.currentToken = msg.token
-        // Persist updated token
+        // Persist updated token to home config
         if (this.config.cwd) {
           try {
-            writeToken(this.config.cwd, msg.token)
+            const existing = loadProjectConfig(this.config.cwd)
+            if (existing) {
+              saveProjectConfig(this.config.cwd, { ...existing, token: msg.token })
+            }
           } catch {
             // Non-fatal
           }
@@ -282,7 +285,7 @@ export class ConduitClient {
     if (!this.currentToken) return
 
     try {
-      const renewUrl = `${this.relayUrl.replace(/^ws/, 'http')}/conduit/${this.slug}/renew`
+      const renewUrl = `${this.relayUrl.replace(/^ws/, 'http')}/${this.slug}/renew`
       const response = await fetch(renewUrl, {
         method: 'POST',
         headers: {
@@ -296,7 +299,10 @@ export class ConduitClient {
           this.currentToken = data['token']
           if (this.config.cwd) {
             try {
-              writeToken(this.config.cwd, data['token'])
+              const existing = loadProjectConfig(this.config.cwd)
+              if (existing) {
+                saveProjectConfig(this.config.cwd, { ...existing, token: data['token'] as string })
+              }
             } catch {
               // Non-fatal
             }
