@@ -24,6 +24,17 @@ export async function createServer(
   const registry = new ConnectionRegistry()
   const pending = new PendingRequests()
 
+  // Redirect /conduit/<slug> (no trailing slash, not a WS upgrade) → /conduit/<slug>/
+  // Needed because the WS parametric route /conduit/:slug wins over the HTTP wildcard /conduit/*
+  // for bare-slug requests without a trailing slash.
+  app.addHook('onRequest', async (_req, reply) => {
+    const match = _req.url.match(/^\/conduit\/([^/?]+)$/)
+    if (match && !_req.headers.upgrade) {
+      const qs = _req.url.includes('?') ? _req.url.slice(_req.url.indexOf('?')) : ''
+      await reply.redirect(`/conduit/${match[1]}/${qs}`, 301)
+    }
+  })
+
   // Health check
   app.get('/healthz', async (_req, reply) => {
     return reply.code(200).send({ status: 'ok', ts: Date.now() })
