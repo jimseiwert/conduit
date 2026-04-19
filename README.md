@@ -16,6 +16,8 @@ Conduit routes public HTTPS traffic to your localhost and gives you a full debug
 
 **The key difference from ngrok:** data stays in your cluster, your whole team shares the same live request stream, and you can go back in time to see exactly what changed between any two requests — field by field.
 
+The VS Code extension works standalone — no CLI required to start forwarding traffic.
+
 ## Features
 
 **Time-travel debugging.** The relay stores a ring buffer of up to 1,000 requests per slug. `conduit diff <id1> <id2>` gives you a field-level JSON diff between any two of them. Find the exact moment something broke without re-triggering it.
@@ -44,18 +46,27 @@ irm https://get.conduitrelay.com/conduit/install.ps1 | iex
 
 ## Quickstart
 
+### VS Code extension (no CLI needed)
+
+1. Install the [Conduit Relay](https://marketplace.visualstudio.com/items?itemName=jimseiwert.conduit-relay) extension
+2. Open any workspace — the extension auto-connects and generates a unique slug
+3. Your public webhook URL appears in a VS Code notification
+4. Send a request to it and watch it arrive in the Conduit sidebar panel
+
+### CLI
+
 ```bash
 # Register a slug and start forwarding to localhost:3000
-conduit start --slug myapp --port 3000
+conduit start --port 3000
 ```
 
 Your public URL appears in the TUI header. Send a request to it — it shows up immediately.
 
 ```
-https://relay.conduitrelay.com/conduit/myapp
+https://relay.conduitrelay.com/ws-a3f9c2b1d4e6/
 ```
 
-On your next run, conduit reads `.conduit` and reconnects automatically. No flags needed.
+On your next run, conduit reads your workspace config from `~/.conduit/projects.json` and reconnects automatically. No flags needed.
 
 ## TUI Controls
 
@@ -78,37 +89,28 @@ conduit replay <id>         Replay a stored request
 conduit token refresh       Refresh your slug token before it expires
 
 Options (start):
-  --slug <slug>             Tunnel slug (appears in the public URL path)
   --port <port>             Local port to forward to (default: 3000)
   --http                    Accept HTTP in addition to HTTPS
   --relay <url>             Custom relay WebSocket URL
-  --config <path>           Path to .conduit config file
 ```
 
 ## Config
 
-Two files keep shareable config and credentials separate.
+Conduit stores workspace configuration in `~/.conduit/projects.json`, keyed by workspace root path. On first run, it generates a unique `ws-` prefixed slug for the workspace and saves the slug and token automatically. No config files to create or manage.
 
-**.conduit** (commit or share with your team):
-```json
-{
-  "slug": "myapp",
-  "port": 3000,
-  "httpEnabled": false
-}
+The only thing you need to configure manually is a custom relay URL, if you self-host:
+
+```bash
+export CONDUIT_RELAY_URL=wss://relay.yourdomain.com
 ```
 
-**.env** (gitignored — never commit this):
-```
-CONDUIT_TOKEN=eyJhbGci...
+Or set `CONDUIT_HOME` to use a different directory for the projects config:
 
-# Self-hosted relay only — omit to use the default conduitrelay.com relay
-CONDUIT_RELAY_URL=wss://relay.yourdomain.com
+```bash
+export CONDUIT_HOME=/path/to/config
 ```
 
-On first run with `--slug`, conduit registers the slug with the relay and writes both files for you. Subsequent runs use them automatically.
-
-If your token doesn't match the slug in `.conduit`, the CLI tells you exactly what's wrong and how to fix it — no silent failures.
+**Sharing a tunnel with your team:** share the slug and token from `~/.conduit/projects.json`. Teammates connect as watchers with `conduit start --relay wss://relay.conduitrelay.com` or via the VS Code extension in watch mode.
 
 ## Self-Hosting
 
@@ -285,9 +287,9 @@ External HTTP request
         │
         ▼
   Relay pod (Fastify + WebSocket)
-  ├── /conduit/:slug/*          ← HTTP proxy — all methods
-  ├── WS /conduit/:slug         ← Owner (CLI)
-  └── WS /conduit/:slug/watch   ← Watchers (teammates, VS Code)
+  ├── /:slug/*              ← HTTP proxy — all methods
+  ├── WS /:slug             ← Owner (CLI or VS Code ext in proxy mode)
+  └── WS /:slug/watch       ← Watchers (teammates, VS Code in watch mode)
         │
         ▼
   ConduitClient (CLI or VS Code ext)

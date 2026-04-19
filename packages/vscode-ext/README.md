@@ -1,12 +1,14 @@
 <div align="center">
   <img src="https://raw.githubusercontent.com/jimseiwert/conduit/main/assets/logo-mark.png" alt="conduit" width="80" />
   <br/><br/>
-  <p><strong>Live request inspection and replay for your local server — directly in VS Code.</strong></p>
+  <p><strong>Live HTTP request inspection and replay for your local server — directly in VS Code.</strong></p>
 </div>
 
 ---
 
 Conduit streams every HTTP request that hits your tunnel straight into a VS Code sidebar panel. Watch traffic arrive in real time, inspect full headers and body, and replay any past request with one click — without leaving the editor.
+
+No CLI required. The extension connects and proxies traffic on its own.
 
 ## What it does
 
@@ -14,9 +16,11 @@ Conduit streams every HTTP request that hits your tunnel straight into a VS Code
 
 **One-click replay.** Select any request and hit Replay. Conduit re-fires it against your local server exactly as it came in — same headers, same body. Useful for iterating on webhook handlers without waiting for the real event to fire again.
 
-**Team observation.** If your team shares the same slug and token, everyone's VS Code panel shows the same live traffic simultaneously.
+**Proxy mode (default).** The extension registers your workspace with the relay and forwards incoming requests to your local server. No CLI needed. Your public webhook URL appears in VS Code the moment you connect.
 
-**Auto-connect.** When VS Code opens a workspace that has a `.conduit` config file, the extension connects automatically. Nothing to configure.
+**Watch mode.** If the Conduit CLI is already running as the owner, the extension switches to watcher mode and shows live traffic without forwarding anything. Your whole team can watch the same request stream simultaneously.
+
+**Auto-connect.** The extension connects automatically when VS Code opens a workspace. On first run it registers a unique slug for the workspace and saves it for future sessions.
 
 ## Requirements
 
@@ -25,49 +29,70 @@ You need a Conduit relay to connect to. Options:
 - **Use the hosted relay** at `wss://relay.conduitrelay.com` — works out of the box, no setup
 - **Self-host** on Kubernetes or Docker — see the [Conduit repo](https://github.com/jimseiwert/conduit) for the Helm chart and Docker Compose file
 
-You also need the **Conduit CLI** to register a slug and start your tunnel:
-
-```bash
-# macOS / Linux
-curl -fsSL https://get.tunnel.digital/conduit | bash
-
-# Then register and start
-conduit start --slug myapp --port 3000
-```
-
-Once the CLI is running, the VS Code extension connects to the same relay and shows traffic in the sidebar.
-
 ## Getting started
 
 1. Install this extension
-2. Install the [Conduit CLI](https://github.com/jimseiwert/conduit#install)
-3. In your project directory, run `conduit start --slug myapp --port 3000`
-4. Open the Conduit panel in the VS Code activity bar
-5. Send a request to your tunnel URL — it appears in the panel instantly
+2. Open any workspace in VS Code
+3. The extension auto-connects and generates a unique webhook URL for the workspace
+4. Your webhook URL appears in a VS Code notification — copy it and send requests to it
+5. Requests appear in the Conduit panel in the activity bar instantly
 
-If your project has a `.conduit` file, the extension connects automatically when VS Code opens.
+That's it. No CLI, no config files, no tokens to manage manually.
+
+## Modes
+
+### Proxy mode (default)
+
+The extension acts as the tunnel owner. It registers with the relay, receives incoming requests, and forwards them to your local server on the configured port (default: 3000).
+
+Use this when you want the extension to handle everything — no CLI needed.
+
+### Watch mode
+
+The extension connects as a watcher. It shows live traffic from whoever is running as the owner (another VS Code instance or the CLI), but does not forward requests itself.
+
+Use this when the CLI is already running, or when you want to observe traffic without forwarding.
+
+Set in VS Code settings:
+```json
+{
+  "conduit.mode": "watch"
+}
+```
+
+If the CLI is already running as owner for your workspace, the extension detects this automatically and falls back to watch mode regardless of your setting.
 
 ## Commands
 
 | Command | What it does |
 |---------|-------------|
-| `Conduit: Connect` | Connect to the relay using your `.conduit` config |
+| `Conduit: Connect` | Connect to the relay |
 | `Conduit: Disconnect` | Disconnect from the relay |
-| `Conduit: Login` | Authenticate via OIDC (required on relays with auth enabled) |
-| `Conduit: Replay Request` | Replay the selected request |
+| `Conduit: Clear Stored Token` | Remove saved credentials and force re-authentication |
+| `Conduit: Copy Webhook URL` | Copy your public webhook URL to the clipboard |
+| `Conduit: Replay Request` | Replay the selected request against your local server |
 | `Conduit: Refresh` | Reload the request list |
 
 ## Settings
 
 | Setting | Default | Description |
 |---------|---------|-------------|
+| `conduit.mode` | `proxy` | `proxy`: extension forwards relay traffic to your local server. `watch`: extension observes traffic from an existing owner. |
+| `conduit.localPort` | `3000` | Local port to forward incoming requests to (proxy mode only) |
 | `conduit.relayUrl` | `wss://relay.conduitrelay.com` | WebSocket URL of your relay server |
-| `conduit.configFile` | `.conduit` | Path to the conduit config file (relative to workspace root) |
-| `conduit.autoConnect` | `true` | Auto-connect when a `.conduit` file is found in the workspace |
+| `conduit.autoConnect` | `true` | Auto-connect when VS Code opens a workspace |
+
+## How slugs and tokens work
+
+On first connect, the extension generates a unique slug for your workspace (e.g. `ws-a3f9c2b1d4e6`) and registers it with the relay. The slug and token are saved to `~/.conduit/projects.json` keyed by workspace path and to VS Code's encrypted secret storage.
+
+On subsequent connects, the extension reuses the saved slug and token automatically. Nothing to copy, paste, or manage.
+
+If you self-host the relay and configured auth (`AUTH_PROVIDER=oidc`), the extension will open your browser for login when needed.
 
 ## Self-hosting
 
-If your team runs its own relay, point the extension at it:
+Point the extension at your relay:
 
 ```json
 // .vscode/settings.json
@@ -76,9 +101,9 @@ If your team runs its own relay, point the extension at it:
 }
 ```
 
-The relay runs as a single Kubernetes pod or Docker container. Full setup docs and the Helm chart are in the [Conduit repository](https://github.com/jimseiwert/conduit).
+Full relay setup docs and the Helm chart are in the [Conduit repository](https://github.com/jimseiwert/conduit).
 
 ## More
 
 - [GitHub](https://github.com/jimseiwert/conduit) — source, issues, CLI docs
-- [CLI installer](https://github.com/jimseiwert/conduit#install) — macOS, Linux, Windows
+- [Conduit CLI](https://github.com/jimseiwert/conduit#install) — terminal UI with time-travel diff and history
