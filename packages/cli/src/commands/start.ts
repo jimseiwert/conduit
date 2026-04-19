@@ -40,6 +40,11 @@ export async function cmdStart(args: {
     if (args.port !== undefined) entry.port = args.port
     if (args.http !== undefined) entry.httpEnabled = args.http
     if (args.relay) entry.relayUrl = args.relay
+    // Migrate stale relay URLs from old domains
+    if (entry.relayUrl && /debug\.tunnel\.digital|tunnel\.digital/.test(entry.relayUrl)) {
+      entry.relayUrl = DEFAULT_RELAY
+      saveProjectConfig(cwd, entry)
+    }
   }
 
   const { slug, port, httpEnabled } = entry

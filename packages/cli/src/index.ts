@@ -18,11 +18,9 @@ COMMANDS
   token refresh       Refresh the conduit token
 
 OPTIONS (start)
-  --slug <slug>       Conduit slug (subdomain)
   --port <port>       Local port to forward to (default: 3000)
   --http              Enable HTTP (not just HTTPS) on the conduit
-  --config <path>     Path to .conduit config file
-  --relay <url>       Relay WebSocket URL (default: wss://debug.tunnel.digital)
+  --relay <url>       Relay WebSocket URL (default: wss://relay.conduitrelay.com)
 
 OPTIONS (auth)
   --relay <url>       Relay base URL
@@ -38,7 +36,8 @@ GLOBAL
   --version           Show version
 
 EXAMPLES
-  conduit start --slug myapp --port 3000
+  conduit start
+  conduit start --port 3001
   conduit auth
   conduit history --limit 20
   conduit replay 550e8400-e29b-41d4-a716-446655440000
