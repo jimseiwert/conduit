@@ -196,6 +196,34 @@ jobs:
           name: conduit-vscode-ext.vsix
           path: packages/vscode-ext/conduit-vscode-ext.vsix
 
+  deploy-relay:
+    name: Deploy relay to Fly.io
+    runs-on: ubuntu-latest
+    needs: [resolve-version, build-relay-image]
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@1.5
+
+      - name: Deploy to Fly.io
+        working-directory: packages/relay
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl deploy \
+            --image ghcr.io/${{ github.repository_owner }}/conduit-relay:${{ needs.resolve-version.outputs.version }} \
+            --strategy rolling \
+            --wait-timeout 300
+
+      - name: Rollback on failure
+        if: failure()
+        working-directory: packages/relay
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: flyctl releases rollback --app conduit-relay
+
   publish-helm:
     name: Publish Helm chart to OCI
     runs-on: ubuntu-latest
@@ -214,7 +242,7 @@ jobs:
   release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [resolve-version, build-cli, build-relay-image, build-vscode-ext]
+    needs: [resolve-version, build-cli, build-relay-image, build-vscode-ext, deploy-relay]
     steps:
       - uses: actions/checkout@v4
 
