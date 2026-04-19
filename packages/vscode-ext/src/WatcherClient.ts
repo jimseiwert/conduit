@@ -24,6 +24,7 @@ export class WatcherClient {
   private ws: WebSocket.WebSocket | null = null
   private slug: string | null = null
   private token: string | null = null
+  private relayUrl: string | null = null
   /** Whether a deliberate disconnect was requested — suppresses auto-reconnect. */
   private intentionalDisconnect = false
   private reconnectDelay = 1000
@@ -50,6 +51,9 @@ export class WatcherClient {
     }
     this.slug = cfg.slug
     this.token = cfg.token
+    if (cfg.relayUrl) {
+      this.relayUrl = cfg.relayUrl
+    }
     await this.connect()
   }
 
@@ -61,9 +65,11 @@ export class WatcherClient {
   async connect(): Promise<void> {
     this.intentionalDisconnect = false
 
-    // Resolve relay URL from settings
+    // Resolve relay URL: .env CONDUIT_RELAY_URL > VS Code setting > default
     const vsConfig = vscode.workspace.getConfiguration('conduit')
-    let relayUrl: string = vsConfig.get('relayUrl') ?? 'wss://relay.conduitrelay.com'
+    let relayUrl: string = this.relayUrl
+      ?? vsConfig.get<string>('relayUrl')
+      ?? 'wss://relay.conduitrelay.com'
 
     // Resolve slug
     if (!this.slug) {
@@ -292,11 +298,17 @@ export class WatcherClient {
     }
   }
 
-  private _scheduleReconnect(url: string, token: string): void {
+  private _scheduleReconnect(url: string, _staleToken: string): void {
     this._clearReconnectTimer()
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null
       if (!this.intentionalDisconnect) {
+        // Re-read token from .env on each reconnect — the CLI may have refreshed it
+        const fresh = this.readConduitConfig()
+        const token = fresh?.token ?? _staleToken
+        if (fresh?.relayUrl) {
+          this.relayUrl = fresh.relayUrl
+        }
         this._openSocket(url, token)
         this.reconnectDelay = Math.min(this.reconnectDelay * 2, MAX_RECONNECT_DELAY_MS)
       }
@@ -312,17 +324,9 @@ export class WatcherClient {
 
   /**
    * Read the .conduit slug from the workspace config file and the CONDUIT_TOKEN
-   * from the process environment or workspace .env file.
-   *
-   * .conduit file format (tried in order):
-   *   1. JSON: { "slug": "my-project" }
-   *   2. Plain text first line: "my-project"
-   *
-   * Token sources (tried in order):
-   *   1. process.env.CONDUIT_TOKEN
-   *   2. KEY=VALUE pairs in workspace .env file
+   * and CONDUIT_RELAY_URL from the process environment or workspace .env file.
    */
-  private readConduitConfig(): { slug: string; token: string } | null {
+  private readConduitConfig(): { slug: string; token: string; relayUrl?: string } | null {
     const root = vscode.workspace.rootPath
     if (!root) {
       return null
@@ -360,10 +364,11 @@ export class WatcherClient {
       return null
     }
 
-    // Resolve token: process.env first, then workspace .env file
+    // Parse .env file once — extract CONDUIT_TOKEN and CONDUIT_RELAY_URL
     let token: string | null = process.env['CONDUIT_TOKEN'] ?? null
+    let relayUrl: string | undefined = process.env['CONDUIT_RELAY_URL'] ?? undefined
 
-    if (!token) {
+    if (!token || !relayUrl) {
       const envPath = path.join(root, '.env')
       if (fs.existsSync(envPath)) {
         try {
@@ -376,9 +381,10 @@ export class WatcherClient {
             const eqIdx = trimmed.indexOf('=')
             const key = trimmed.slice(0, eqIdx).trim()
             const val = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, '')
-            if (key === 'CONDUIT_TOKEN') {
+            if (key === 'CONDUIT_TOKEN' && !token) {
               token = val
-              break
+            } else if (key === 'CONDUIT_RELAY_URL' && !relayUrl) {
+              relayUrl = val
             }
           }
         } catch {
@@ -391,6 +397,6 @@ export class WatcherClient {
       return null
     }
 
-    return { slug, token }
+    return { slug, token, relayUrl }
   }
 }
