@@ -63,7 +63,7 @@ export class WatcherClient {
 
     // Resolve relay URL from settings
     const vsConfig = vscode.workspace.getConfiguration('conduit')
-    let relayUrl: string = vsConfig.get('relayUrl') ?? 'wss://debug.tunnel.digital'
+    let relayUrl: string = vsConfig.get('relayUrl') ?? 'wss://relay.conduitrelay.com'
 
     // Resolve slug
     if (!this.slug) {
@@ -98,7 +98,7 @@ export class WatcherClient {
     const watchUrl = `${relayUrl}/conduit/${this.slug}/watch`
     this.connectedUrl = watchUrl
     this.statusBar.setReconnecting()
-    this._openSocket(watchUrl, this.token)
+    this._openSocket(watchUrl, this.token!)
   }
 
   /** Close the WebSocket and suppress reconnection. */
@@ -119,7 +119,7 @@ export class WatcherClient {
    */
   async login(): Promise<void> {
     const vsConfig = vscode.workspace.getConfiguration('conduit')
-    const relayUrl: string = vsConfig.get('relayUrl') ?? 'wss://debug.tunnel.digital'
+    const relayUrl: string = vsConfig.get('relayUrl') ?? 'wss://relay.conduitrelay.com'
 
     // Convert wss:// → https:// for the browser URL
     const httpBase = relayUrl.replace(/^wss?:\/\//, (m) => (m.startsWith('wss') ? 'https://' : 'http://'))
