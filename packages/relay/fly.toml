@@ -3,8 +3,6 @@ primary_region = "iad"
 
 [env]
   PORT = "3000"
-  STORAGE_ADAPTER = "sqlite"
-  SQLITE_PATH = "/data/conduit.db"
   RELAY_DOMAIN = "relay.conduitrelay.com"
   RELAY_PROTO = "https"
   FORWARD_TIMEOUT_MS = "10000"
@@ -13,6 +11,8 @@ primary_region = "iad"
 
 # Secrets (set once with `fly secrets set`):
 #   CONDUIT_JWT_SECRET
+#   STORAGE_ADAPTER=postgres
+#   DATABASE_URL=<neon-connection-string>
 #   RELAY_REGISTRATION_TOKEN  (optional)
 
 [http_service]
@@ -31,10 +31,6 @@ primary_region = "iad"
   size = "shared-cpu-1x"
   memory = "256mb"
 
-[[mounts]]
-  source = "relay_data"
-  destination = "/data"
-  initial_size = "1gb"
 
 [[checks]]
   name = "healthz"
