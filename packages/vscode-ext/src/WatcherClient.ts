@@ -327,10 +327,12 @@ export class WatcherClient {
    * and CONDUIT_RELAY_URL from the process environment or workspace .env file.
    */
   private readConduitConfig(): { slug: string; token: string; relayUrl?: string } | null {
-    const root = vscode.workspace.rootPath
+    const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
     if (!root) {
+      console.log('[Conduit] readConduitConfig: no workspace folder open')
       return null
     }
+    console.log('[Conduit] readConduitConfig: reading from', root)
 
     const vsConfig = vscode.workspace.getConfiguration('conduit')
     const configFile: string = vsConfig.get('configFile') ?? '.conduit'
