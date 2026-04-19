@@ -83,7 +83,7 @@ describe('RequestList', () => {
       })
     )
 
-    expect(lastFrame()).toContain('Waiting')
+    expect(lastFrame()).toContain('waiting')
   })
 
   it('renders multiple requests', () => {
@@ -110,7 +110,7 @@ describe('RequestList', () => {
     expect(frame).toContain('/baz')
   })
 
-  it('includes [r] replay hint in each row', () => {
+  it('shows selection indicator on selected row', () => {
     const entries: RequestEntry[] = [{ request: makeRequest() }]
 
     const { lastFrame } = render(
@@ -121,7 +121,7 @@ describe('RequestList', () => {
       })
     )
 
-    expect(lastFrame()).toContain('[r]')
+    expect(lastFrame()).toContain('›')
   })
 })
 
@@ -131,7 +131,7 @@ describe('Header', () => {
   it('renders URL and connected state', () => {
     const { lastFrame } = render(
       React.createElement(Header, {
-        url: 'https://myapp.debug.tunnel.digital',
+        url: 'https://relay.conduitrelay.com/conduit/myapp/',
         connected: true,
         watcherCount: 0,
       })
@@ -139,14 +139,14 @@ describe('Header', () => {
 
     const frame = lastFrame() ?? ''
     expect(frame).toContain('Conduit')
-    expect(frame).toContain('myapp.debug.tunnel.digital')
+    expect(frame).toContain('relay.conduitrelay.com')
     expect(frame).toContain('Connected')
   })
 
   it('shows reconnecting state when not connected', () => {
     const { lastFrame } = render(
       React.createElement(Header, {
-        url: 'https://myapp.debug.tunnel.digital',
+        url: 'https://relay.conduitrelay.com/conduit/myapp/',
         connected: false,
         watcherCount: 0,
       })
@@ -158,7 +158,7 @@ describe('Header', () => {
   it('shows watcher count', () => {
     const { lastFrame } = render(
       React.createElement(Header, {
-        url: 'https://myapp.debug.tunnel.digital',
+        url: 'https://relay.conduitrelay.com/conduit/myapp/',
         connected: true,
         watcherCount: 3,
       })
@@ -170,7 +170,7 @@ describe('Header', () => {
   it('uses singular watcher when count is 1', () => {
     const { lastFrame } = render(
       React.createElement(Header, {
-        url: 'https://myapp.debug.tunnel.digital',
+        url: 'https://relay.conduitrelay.com/conduit/myapp/',
         connected: true,
         watcherCount: 1,
       })
@@ -184,7 +184,7 @@ describe('Header', () => {
   it('updates when watcher count changes', () => {
     const { lastFrame, rerender } = render(
       React.createElement(Header, {
-        url: 'https://myapp.debug.tunnel.digital',
+        url: 'https://relay.conduitrelay.com/conduit/myapp/',
         connected: true,
         watcherCount: 0,
       })
@@ -194,7 +194,7 @@ describe('Header', () => {
 
     rerender(
       React.createElement(Header, {
-        url: 'https://myapp.debug.tunnel.digital',
+        url: 'https://relay.conduitrelay.com/conduit/myapp/',
         connected: true,
         watcherCount: 5,
       })

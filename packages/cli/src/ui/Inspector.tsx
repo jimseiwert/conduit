@@ -1,104 +1,149 @@
-import React, { useState } from 'react'
-import { Box, Text, useInput } from 'ink'
+import React from 'react'
+import { Box, Text } from 'ink'
 import type { IncomingRequest, RequestCompleted, RequestRecord } from '@conduit/types'
 import { DiffView } from './DiffView.js'
 
 interface InspectorProps {
   request: IncomingRequest
   completed?: RequestCompleted
-  diffBase?: RequestRecord
+  record?: RequestRecord | null
+  diffBase?: RequestRecord | null
+  scrollOffset: number
 }
 
-function tryParseJson(s: string | null | undefined): unknown | null {
-  if (!s) return null
+// ── Line model ───────────────────────────────────────────────────────────────
+
+interface Line {
+  text: string
+  color?: string
+  bold?: boolean
+  dim?: boolean
+}
+
+function sectionHeader(label: string): Line {
+  return { text: `── ${label} ─`, color: 'gray', dim: true }
+}
+
+function blank(): Line {
+  return { text: '' }
+}
+
+function decodeBody(body: string | null | undefined, encoding?: string): string | null {
+  if (!body) return null
+  if (encoding === 'base64') {
+    try { return Buffer.from(body, 'base64').toString('utf8') } catch { return body }
+  }
+  return body
+}
+
+function prettyBody(raw: string): Line[] {
+  let text = raw
   try {
-    return JSON.parse(s)
-  } catch {
-    return null
+    const parsed = JSON.parse(raw)
+    text = JSON.stringify(parsed, null, 2)
+  } catch { /* keep raw */ }
+
+  return text.split('\n').map((line) => ({ text: `  ${line}`, color: 'yellow' }))
+}
+
+function headerLines(headers: Record<string, string>): Line[] {
+  return Object.entries(headers).map(([k, v]) => ({
+    text: `  ${k}: ${v}`,
+    color: undefined,
+  }))
+}
+
+function statusLabel(status: number): string {
+  const labels: Record<number, string> = {
+    200: 'OK', 201: 'Created', 204: 'No Content',
+    301: 'Moved Permanently', 302: 'Found', 304: 'Not Modified',
+    400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden',
+    404: 'Not Found', 405: 'Method Not Allowed', 409: 'Conflict',
+    422: 'Unprocessable Entity', 429: 'Too Many Requests',
+    500: 'Internal Server Error', 502: 'Bad Gateway', 503: 'Service Unavailable',
   }
+  return labels[status] ?? ''
 }
 
-function formatJson(val: unknown, indent = 2): string {
-  return JSON.stringify(val, null, indent)
+function statusColor(status: number): string {
+  if (status >= 500) return 'red'
+  if (status >= 400) return 'yellow'
+  if (status >= 300) return 'cyan'
+  return 'green'
 }
 
-function isJsonContentType(headers: Record<string, string>): boolean {
-  const ct = headers['content-type'] ?? headers['Content-Type'] ?? ''
-  return ct.includes('application/json')
-}
+function buildLines(
+  request: IncomingRequest,
+  completed: RequestCompleted | undefined,
+  record: RequestRecord | null | undefined,
+): Line[] {
+  const lines: Line[] = []
 
-function HeadersSection({ headers }: { headers: Record<string, string> }) {
-  const [expanded, setExpanded] = useState(false)
+  // ── Summary ─────────────────────────────────────────────────────────────────
+  const statusPart = completed
+    ? `  ${completed.status} ${statusLabel(completed.status)}  ${completed.durationMs}ms`
+    : ''
+  lines.push({ text: `${request.method} ${request.path}${statusPart}`, bold: true })
+  lines.push(blank())
 
-  useInput((input, key) => {
-    if (key.rightArrow) setExpanded(true)
-    if (key.leftArrow) setExpanded(false)
-  })
-
-  const entries = Object.entries(headers)
-
-  return (
-    <Box flexDirection="column" marginTop={1}>
-      <Text bold>
-        Headers {expanded ? '(→ to collapse)' : '(→ to expand)'}
-      </Text>
-      {expanded ? (
-        entries.map(([k, v]) => (
-          <Box key={k} paddingLeft={2}>
-            <Text color="cyan">{k}</Text>
-            <Text>: {v}</Text>
-          </Box>
-        ))
-      ) : (
-        <Text color="gray">  {entries.length} header{entries.length !== 1 ? 's' : ''}</Text>
-      )}
-    </Box>
-  )
-}
-
-function BodySection({ body, bodyEncoding, label }: {
-  body: string | null | undefined
-  bodyEncoding?: string
-  label: string
-}) {
-  if (!body) {
-    return (
-      <Box flexDirection="column" marginTop={1}>
-        <Text bold>{label}</Text>
-        <Text color="gray">  (empty)</Text>
-      </Box>
-    )
+  // ── Request headers ──────────────────────────────────────────────────────────
+  lines.push(sectionHeader('REQUEST HEADERS'))
+  const reqHeaders = Object.entries(request.headers)
+  if (reqHeaders.length === 0) {
+    lines.push({ text: '  (none)', dim: true })
+  } else {
+    lines.push(...headerLines(request.headers))
   }
+  lines.push(blank())
 
-  let displayBody = body
-  if (bodyEncoding === 'base64') {
-    try {
-      displayBody = Buffer.from(body, 'base64').toString('utf8')
-    } catch {
-      displayBody = body
+  // ── Request body ─────────────────────────────────────────────────────────────
+  lines.push(sectionHeader('REQUEST BODY'))
+  const reqBody = decodeBody(request.body, request.bodyEncoding)
+  if (!reqBody) {
+    lines.push({ text: '  (empty)', dim: true })
+  } else {
+    lines.push(...prettyBody(reqBody))
+    if (request.bodyTruncated) {
+      lines.push({ text: '  … (truncated)', dim: true })
     }
   }
 
-  const parsed = tryParseJson(displayBody)
+  // ── Response (only if we have full record or at least completed status) ──────
+  if (completed || record) {
+    lines.push(blank())
+    lines.push(sectionHeader('RESPONSE HEADERS'))
 
-  return (
-    <Box flexDirection="column" marginTop={1}>
-      <Text bold>{label}</Text>
-      {parsed !== null ? (
-        <Box paddingLeft={2}>
-          <Text color="yellow">{formatJson(parsed)}</Text>
-        </Box>
-      ) : (
-        <Box paddingLeft={2}>
-          <Text>{displayBody.slice(0, 500)}{displayBody.length > 500 ? '...' : ''}</Text>
-        </Box>
-      )}
-    </Box>
-  )
+    const resHeaders = record?.responseHeaders
+    if (resHeaders && Object.keys(resHeaders).length > 0) {
+      lines.push(...headerLines(resHeaders))
+    } else if (record) {
+      lines.push({ text: '  (none)', dim: true })
+    } else {
+      lines.push({ text: '  (not yet fetched)', dim: true })
+    }
+
+    lines.push(blank())
+    lines.push(sectionHeader('RESPONSE BODY'))
+
+    const resBody = decodeBody(record?.responseBody, record?.responseBodyEncoding)
+    if (!resBody && record) {
+      lines.push({ text: '  (empty)', dim: true })
+    } else if (!resBody) {
+      lines.push({ text: '  (not yet fetched — press f to load)', dim: true })
+    } else {
+      lines.push(...prettyBody(resBody))
+      if (record?.responseBodyTruncated) {
+        lines.push({ text: '  … (truncated)', dim: true })
+      }
+    }
+  }
+
+  return lines
 }
 
-export function Inspector({ request, completed, diffBase }: InspectorProps) {
-  // Build a minimal RequestRecord for diffing
+// ── Component ────────────────────────────────────────────────────────────────
+
+export function Inspector({ request, completed, record, diffBase, scrollOffset }: InspectorProps) {
   const currentRecord: RequestRecord = {
     id: request.id,
     slug: '',
@@ -119,26 +164,34 @@ export function Inspector({ request, completed, diffBase }: InspectorProps) {
     return <DiffView base={diffBase} compare={currentRecord} />
   }
 
+  const availableHeight = Math.max(4, (process.stdout.rows ?? 24) - 7)
+  const allLines = buildLines(request, completed, record)
+  const maxScroll = Math.max(0, allLines.length - availableHeight)
+  const clampedOffset = Math.min(scrollOffset, maxScroll)
+  const visible = allLines.slice(clampedOffset, clampedOffset + availableHeight)
+  const linesBelow = allLines.length - clampedOffset - visible.length
+
   return (
     <Box flexDirection="column" paddingX={1}>
-      {/* Summary line */}
-      <Box flexDirection="row" marginBottom={1}>
-        <Text bold color="cyan">{request.method}</Text>
-        <Text> </Text>
-        <Text>{request.path}</Text>
-        {completed && (
-          <>
-            <Text>  </Text>
-            <Text color={completed.status >= 400 ? 'red' : 'green'}>
-              {completed.status}
-            </Text>
-            <Text color="gray">  {completed.durationMs}ms</Text>
-          </>
-        )}
-      </Box>
+      {visible.map((line, i) => (
+        <Text
+          key={i}
+          color={line.color}
+          bold={line.bold}
+          dimColor={line.dim}
+        >
+          {line.text || ' '}
+        </Text>
+      ))}
 
-      <HeadersSection headers={request.headers} />
-      <BodySection body={request.body} bodyEncoding={request.bodyEncoding} label="Request Body" />
+      {/* Scroll indicator */}
+      {(clampedOffset > 0 || linesBelow > 0) && (
+        <Text dimColor>
+          {clampedOffset > 0 ? `↑${clampedOffset} ` : ''}
+          {linesBelow > 0 ? `↓${linesBelow} lines` : ''}
+          {' — j/k to scroll'}
+        </Text>
+      )}
     </Box>
   )
 }

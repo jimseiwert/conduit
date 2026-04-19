@@ -11,9 +11,10 @@ interface AppProps {
   url: string
   port: number
   client: ConduitClient
+  version?: string
 }
 
-export function App({ slug, url: initialUrl, port, client }: AppProps) {
+export function App({ slug, url: initialUrl, port, client, version = '1.0.0' }: AppProps) {
   const { exit } = useApp()
 
   const [connected, setConnected] = useState(false)
@@ -25,6 +26,8 @@ export function App({ slug, url: initialUrl, port, client }: AppProps) {
   const [diffBaseIndex, setDiffBaseIndex] = useState<number | null>(null)
   const [diffBaseRecord, setDiffBaseRecord] = useState<RequestRecord | null>(null)
   const [records, setRecords] = useState<Map<string, RequestRecord>>(new Map())
+  const [inspectorScroll, setInspectorScroll] = useState(0)
+  const fetchedIds = React.useRef(new Set<string>())
 
   // Wire up client events once on mount
   React.useEffect(() => {
@@ -104,6 +107,18 @@ export function App({ slug, url: initialUrl, port, client }: AppProps) {
     }
   }, [client])
 
+  // Auto-fetch full record for selected entry (for response headers/body in inspector)
+  React.useEffect(() => {
+    const entry = entries[selectedIndex]
+    if (!entry) return
+    const id = entry.request.id
+    if (!fetchedIds.current.has(id)) {
+      fetchedIds.current.add(id)
+      client.sendFetch([id])
+    }
+    setInspectorScroll(0)
+  }, [selectedIndex, entries, client])
+
   useInput((input, key) => {
     if (input === 'q') {
       client.disconnect()
@@ -118,6 +133,16 @@ export function App({ slug, url: initialUrl, port, client }: AppProps) {
 
     if (key.downArrow) {
       setSelectedIndex((prev) => Math.min(entries.length - 1, prev + 1))
+      return
+    }
+
+    if (input === 'j') {
+      setInspectorScroll((prev) => prev + 1)
+      return
+    }
+
+    if (input === 'k') {
+      setInspectorScroll((prev) => Math.max(0, prev - 1))
       return
     }
 
@@ -203,12 +228,16 @@ export function App({ slug, url: initialUrl, port, client }: AppProps) {
                 <Inspector
                   request={selectedEntry.request}
                   completed={selectedEntry.completed}
+                  record={records.get(selectedEntry.request.id)}
                   diffBase={diffBase}
+                  scrollOffset={inspectorScroll}
                 />
               ) : (
                 <Inspector
                   request={selectedEntry.request}
                   completed={selectedEntry.completed}
+                  record={records.get(selectedEntry.request.id)}
+                  scrollOffset={inspectorScroll}
                 />
               )}
             </>
@@ -228,13 +257,14 @@ export function App({ slug, url: initialUrl, port, client }: AppProps) {
       )}
 
       {/* Footer */}
-      <Box paddingX={1} borderStyle="single" borderTop={true} borderBottom={false} borderLeft={false} borderRight={false}>
-        <Text color="gray">
-          ↑↓ navigate  r replay  d diff  Esc clear diff  q quit
-        </Text>
-        {diffBaseIndex !== null && (
-          <Text color="yellow">  [diff mode: base selected at {diffBaseIndex + 1}]</Text>
-        )}
+      <Box paddingX={1} borderStyle="single" borderTop={true} borderBottom={false} borderLeft={false} borderRight={false} justifyContent="space-between">
+        <Box>
+          <Text color="gray">↑↓ navigate  j/k scroll  r replay  d diff  Esc clear diff  q quit</Text>
+          {diffBaseIndex !== null && (
+            <Text color="yellow">  [diff mode: base #{diffBaseIndex + 1}]</Text>
+          )}
+        </Box>
+        <Text dimColor>v{version}</Text>
       </Box>
     </Box>
   )
