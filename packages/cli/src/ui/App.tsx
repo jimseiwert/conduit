@@ -13,10 +13,11 @@ interface AppProps {
   client: ConduitClient
 }
 
-export function App({ slug, url, port, client }: AppProps) {
+export function App({ slug, url: initialUrl, port, client }: AppProps) {
   const { exit } = useApp()
 
   const [connected, setConnected] = useState(false)
+  const [url, setUrl] = useState(initialUrl)
   const [watcherCount, setWatcherCount] = useState(0)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [entries, setEntries] = useState<RequestEntry[]>([])
@@ -48,6 +49,7 @@ export function App({ slug, url, port, client }: AppProps) {
 
     clientAny.events.onConnected = (_slug, _token, _url) => {
       setConnected(true)
+      setUrl(_url)
     }
 
     clientAny.events.onRequest = (req: IncomingRequest) => {
