@@ -2,7 +2,7 @@
   "name": "conduit-relay",
   "displayName": "Conduit Relay",
   "description": "Live HTTP request inspection and replay for your local server. Stream tunnel traffic directly into VS Code.",
-  "version": "1.0.22",
+  "version": "1.0.23",
   "publisher": "jimseiwert",
   "icon": "media/icon.png",
   "galleryBanner": { "color": "#0F172A", "theme": "dark" },
@@ -32,16 +32,23 @@
       { "command": "conduit.connect", "title": "Conduit: Connect" },
       { "command": "conduit.disconnect", "title": "Conduit: Disconnect" },
       { "command": "conduit.logout", "title": "Conduit: Clear Stored Token" },
+      { "command": "conduit.copyWebhookUrl", "title": "Conduit: Copy Webhook URL" },
       { "command": "conduit.replay", "title": "Conduit: Replay Request" },
       { "command": "conduit.refresh", "title": "Conduit: Refresh" }
     ],
     "configuration": {
       "title": "Conduit",
       "properties": {
-        "conduit.configFile": {
+        "conduit.mode": {
           "type": "string",
-          "default": ".conduit",
-          "description": "Path to conduit config file"
+          "enum": ["proxy", "watch"],
+          "default": "proxy",
+          "description": "proxy: extension forwards relay traffic to your local server. watch: extension watches traffic from an existing conduit owner (CLI or another instance)."
+        },
+        "conduit.localPort": {
+          "type": "number",
+          "default": 3000,
+          "description": "Local port to forward relay traffic to (proxy mode only)"
         },
         "conduit.relayUrl": {
           "type": "string",
@@ -51,7 +58,7 @@
         "conduit.autoConnect": {
           "type": "boolean",
           "default": true,
-          "description": "Auto-connect when a .conduit config file is found"
+          "description": "Auto-connect on workspace open"
         }
       }
     }

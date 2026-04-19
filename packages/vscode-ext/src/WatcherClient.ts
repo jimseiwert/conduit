@@ -1,6 +1,7 @@
 import * as vscode from 'vscode'
 import * as path from 'path'
 import * as fs from 'fs'
+import * as os from 'os'
 import * as WebSocket from 'ws'
 import type { RelayOutbound, IncomingRequest, RequestCompleted, RequestRecords } from '@conduit/types'
 import type { StatusBar } from './StatusBar'
@@ -48,7 +49,7 @@ export class WatcherClient {
    * Silently aborts if slug or token cannot be resolved.
    */
   async tryAutoConnect(): Promise<void> {
-    const cfg = this.readConduitConfig()
+    const cfg = this.readHomeConfig()
     if (!cfg) return
 
     this.slug = cfg.slug
@@ -76,24 +77,24 @@ export class WatcherClient {
 
     // Resolve slug
     if (!this.slug) {
-      const cfg = this.readConduitConfig()
+      const cfg = this.readHomeConfig()
       if (cfg) {
         this.slug = cfg.slug
         if (cfg.token) this.token = cfg.token
         if (cfg.relayUrl) { this.relayUrl = cfg.relayUrl; relayUrl = cfg.relayUrl }
       } else {
         const entered = await vscode.window.showInputBox({
-          prompt: 'Enter conduit slug (from .conduit file)',
-          placeHolder: 'my-project',
+          prompt: 'Enter conduit slug (e.g. ws-a3f9c2b1d4e6)',
+          placeHolder: 'ws-a3f9c2b1d4e6',
         })
         if (!entered) return
         this.slug = entered
       }
     }
 
-    // Resolve token: .env → SecretStorage → ask
+    // Resolve token: home config → SecretStorage → ask
     if (!this.token) {
-      const cfg = this.readConduitConfig()
+      const cfg = this.readHomeConfig()
       if (cfg?.token) {
         this.token = cfg.token
       } else {
@@ -125,7 +126,7 @@ export class WatcherClient {
       }
     }
 
-    const watchUrl = `${relayUrl}/conduit/${this.slug}/watch`
+    const watchUrl = `${relayUrl}/${this.slug}/watch`
     this.connectedUrl = watchUrl
     this.statusBar.setReconnecting()
     this._openSocket(watchUrl, this.token!)
@@ -228,13 +229,17 @@ export class WatcherClient {
   }
 
   private _handleMessage(data: WebSocket.RawData): void {
-    if (data instanceof Buffer || data instanceof ArrayBuffer) {
-      return
-    }
+    const text = Buffer.isBuffer(data)
+      ? data.toString('utf8')
+      : data instanceof ArrayBuffer
+      ? Buffer.from(data).toString('utf8')
+      : Array.isArray(data)
+      ? Buffer.concat(data as Buffer[]).toString('utf8')
+      : String(data)
 
     let parsed: RelayOutbound
     try {
-      parsed = JSON.parse(data.toString()) as RelayOutbound
+      parsed = JSON.parse(text) as RelayOutbound
     } catch {
       return
     }
@@ -332,7 +337,7 @@ export class WatcherClient {
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null
       if (!this.intentionalDisconnect) {
-        const fresh = this.readConduitConfig()
+        const fresh = this.readHomeConfig()
         const token = fresh?.token ?? _staleToken
         if (fresh?.relayUrl) this.relayUrl = fresh.relayUrl
         this._openSocket(url, token)
@@ -349,63 +354,30 @@ export class WatcherClient {
   }
 
   /**
-   * Read the .conduit slug from the workspace config file and the CONDUIT_TOKEN
-   * and CONDUIT_RELAY_URL from the process environment or workspace .env file.
-   * Returns { slug, token: null, relayUrl? } when slug is found but token is not.
+   * Read the project entry from ~/.conduit/projects.json, keyed by the current
+   * workspace root. Returns null if no entry exists.
    */
-  private readConduitConfig(): { slug: string; token: string | null; relayUrl?: string } | null {
+  private readHomeConfig(): { slug: string; token: string | null; relayUrl?: string } | null {
     const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
     if (!root) return null
 
-    const vsConfig = vscode.workspace.getConfiguration('conduit')
-    const configFile: string = vsConfig.get('configFile') ?? '.conduit'
-    const conduitFilePath = path.join(root, configFile)
+    const homeConfigDir = process.env['CONDUIT_HOME']
+      ?? path.join(os.homedir(), '.conduit')
+    const homeConfigPath = path.join(homeConfigDir, 'projects.json')
 
-    if (!fs.existsSync(conduitFilePath)) {
-      return null
-    }
+    if (!fs.existsSync(homeConfigPath)) return null
 
-    let slug: string | null = null
     try {
-      const content = fs.readFileSync(conduitFilePath, 'utf8').trim()
-      try {
-        const json = JSON.parse(content) as { slug?: string }
-        if (json.slug && typeof json.slug === 'string') {
-          slug = json.slug
-        }
-      } catch {
-        const firstLine = content.split(/\r?\n/).find((l) => l.trim().length > 0)
-        if (firstLine) slug = firstLine.trim()
+      const raw = fs.readFileSync(homeConfigPath, 'utf8')
+      const parsed = JSON.parse(raw) as {
+        version?: number
+        projects?: Record<string, { slug: string; token?: string | null; relayUrl?: string }>
       }
+      const entry = parsed.projects?.[root]
+      if (!entry?.slug) return null
+      return { slug: entry.slug, token: entry.token ?? null, relayUrl: entry.relayUrl }
     } catch {
       return null
     }
-
-    if (!slug) return null
-
-    let token: string | null = process.env['CONDUIT_TOKEN'] ?? null
-    let relayUrl: string | undefined = process.env['CONDUIT_RELAY_URL'] ?? undefined
-
-    if (!token || !relayUrl) {
-      const envPath = path.join(root, '.env')
-      if (fs.existsSync(envPath)) {
-        try {
-          const envContent = fs.readFileSync(envPath, 'utf8')
-          for (const line of envContent.split(/\r?\n/)) {
-            const trimmed = line.trim()
-            if (trimmed.startsWith('#') || !trimmed.includes('=')) continue
-            const eqIdx = trimmed.indexOf('=')
-            const key = trimmed.slice(0, eqIdx).trim()
-            const val = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, '')
-            if (key === 'CONDUIT_TOKEN' && !token) token = val
-            else if (key === 'CONDUIT_RELAY_URL' && !relayUrl) relayUrl = val
-          }
-        } catch {
-          // non-fatal
-        }
-      }
-    }
-
-    return { slug, token, relayUrl }
   }
 }
