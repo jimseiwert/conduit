@@ -45,8 +45,8 @@ export class WatcherClient {
    */
   async tryAutoConnect(): Promise<void> {
     const cfg = this.readConduitConfig()
-    if (!cfg) {
-      // No .conduit file or token found — stay disconnected silently
+    if (!cfg || !cfg.token) {
+      // No .conduit file or no token yet — stay disconnected silently
       return
     }
     this.slug = cfg.slug
@@ -71,34 +71,36 @@ export class WatcherClient {
       ?? vsConfig.get<string>('relayUrl')
       ?? 'wss://relay.conduitrelay.com'
 
-    // Resolve slug
+    // Resolve slug + relay URL from .conduit / .env
     if (!this.slug) {
       const cfg = this.readConduitConfig()
       if (cfg) {
         this.slug = cfg.slug
-        this.token = cfg.token
+        if (cfg.token) this.token = cfg.token
+        if (cfg.relayUrl) this.relayUrl = cfg.relayUrl
       } else {
         const entered = await vscode.window.showInputBox({
           prompt: 'Enter conduit slug (from .conduit file)',
           placeHolder: 'my-project',
         })
-        if (!entered) {
-          return
-        }
+        if (!entered) return
         this.slug = entered
       }
     }
 
-    // Resolve token
+    // Resolve token — only prompt if not found in .env
     if (!this.token) {
-      const entered = await vscode.window.showInputBox({
-        prompt: 'Enter conduit token (CONDUIT_TOKEN)',
-        password: true,
-      })
-      if (!entered) {
-        return
+      const cfg = this.readConduitConfig()
+      if (cfg?.token) {
+        this.token = cfg.token
+      } else {
+        const entered = await vscode.window.showInputBox({
+          prompt: 'Enter CONDUIT_TOKEN (run `conduit start` first to generate one)',
+          password: true,
+        })
+        if (!entered) return
+        this.token = entered
       }
-      this.token = entered
     }
 
     const watchUrl = `${relayUrl}/conduit/${this.slug}/watch`
@@ -326,7 +328,7 @@ export class WatcherClient {
    * Read the .conduit slug from the workspace config file and the CONDUIT_TOKEN
    * and CONDUIT_RELAY_URL from the process environment or workspace .env file.
    */
-  private readConduitConfig(): { slug: string; token: string; relayUrl?: string } | null {
+  private readConduitConfig(): { slug: string; token: string | null; relayUrl?: string } | null {
     const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
     if (!root) {
       console.log('[Conduit] readConduitConfig: no workspace folder open')
@@ -393,10 +395,6 @@ export class WatcherClient {
           // .env read failure is non-fatal
         }
       }
-    }
-
-    if (!token) {
-      return null
     }
 
     return { slug, token, relayUrl }

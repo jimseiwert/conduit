@@ -2,7 +2,7 @@
   "name": "conduit-relay",
   "displayName": "Conduit Relay",
   "description": "Live HTTP request inspection and replay for your local server. Stream tunnel traffic directly into VS Code.",
-  "version": "1.0.0",
+  "version": "1.0.21",
   "publisher": "jimseiwert",
   "icon": "media/icon.png",
   "galleryBanner": { "color": "#0F172A", "theme": "dark" },
