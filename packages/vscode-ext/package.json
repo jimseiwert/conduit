@@ -33,6 +33,7 @@
       { "command": "conduit.disconnect", "title": "Conduit: Disconnect" },
       { "command": "conduit.logout", "title": "Conduit: Clear Stored Token" },
       { "command": "conduit.copyWebhookUrl", "title": "Conduit: Copy Webhook URL" },
+      { "command": "conduit.inspectRequest", "title": "Conduit: Inspect Request" },
       { "command": "conduit.replay", "title": "Conduit: Replay Request" },
       { "command": "conduit.refresh", "title": "Conduit: Refresh" }
     ],
@@ -59,6 +60,11 @@
           "type": "boolean",
           "default": true,
           "description": "Auto-connect on workspace open"
+        },
+        "conduit.registrationToken": {
+          "type": "string",
+          "default": "",
+          "description": "Relay registration token (self-hosted only). Set this to the RELAY_REGISTRATION_TOKEN value configured on your relay server."
         }
       }
     }

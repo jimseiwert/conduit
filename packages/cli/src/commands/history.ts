@@ -48,7 +48,7 @@ function printTable(records: RequestRecord[]): void {
 }
 
 export async function cmdHistory(args: { limit?: number; relay?: string }) {
-  const relayUrl = args.relay ?? process.env['TUNNEL_RELAY_URL'] ?? DEFAULT_RELAY
+  const relayUrl = args.relay ?? process.env['CONDUIT_RELAY_URL'] ?? DEFAULT_RELAY
   const limit = args.limit ?? 50
   const cwd = process.cwd()
 

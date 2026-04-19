@@ -100,14 +100,14 @@ async function forwardToLocalhost(
 
   try {
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 30_000)
+    const timeout = setTimeout(() => controller.abort(), 8_000)
 
     let response: Response
     try {
       response = await fetch(url, {
         method: req.method,
         headers,
-        body: bodylessMethods.has(req.method.toUpperCase()) ? undefined : body as BodyInit,
+        body: bodylessMethods.has(req.method.toUpperCase()) ? undefined : body as string | Buffer | null,
         signal: controller.signal,
       })
     } catch (err) {
@@ -274,9 +274,8 @@ export class OwnerClient {
         httpEnabled: false,
       }
       if (this.token) registerMsg['token'] = this.token
-      if (process.env['CONDUIT_REGISTRATION_TOKEN']) {
-        registerMsg['registrationToken'] = process.env['CONDUIT_REGISTRATION_TOKEN']
-      }
+      const registrationToken = vscode.workspace.getConfiguration('conduit').get<string>('registrationToken') || process.env['CONDUIT_REGISTRATION_TOKEN']
+      if (registrationToken) registerMsg['registrationToken'] = registrationToken
       ws.send(JSON.stringify(registerMsg))
     })
 
@@ -332,9 +331,9 @@ export class OwnerClient {
 
       case 'error': {
         if (msg.code === 'SLUG_IN_USE') {
-          // CLI is already running as owner for this slug — fall back to watcher
+          // Another owner is active (CLI or prior session) — fall back to watcher
           vscode.window.showInformationMessage(
-            'Conduit: CLI is already running as owner — switching to watch mode.'
+            'Conduit: Another owner is active for this slug — watching instead. Click Connect to retry as owner.'
           )
           this.intentionalDisconnect = true
           this.ws?.close()
@@ -371,10 +370,22 @@ export class OwnerClient {
         // Forward to localhost and send response back to relay
         const port = this.port
         forwardToLocalhost(req, port).then((resp) => {
+          // Update local status immediately — the relay may time out before sending
+          // a `completed` message back if the local server was slow to respond.
+          const idx = this.requests.findIndex((r) => r.id === req.id)
+          if (idx !== -1 && this.requests[idx]!.status === null) {
+            this.requests[idx] = { ...this.requests[idx]!, status: resp.status, durationMs: resp.durationMs }
+            this.onUpdate?.()
+          }
           if (this.ws?.readyState === WebSocket.WebSocket.OPEN) {
             this.ws.send(JSON.stringify(resp))
           }
         }).catch(() => {
+          const idx = this.requests.findIndex((r) => r.id === req.id)
+          if (idx !== -1 && this.requests[idx]!.status === null) {
+            this.requests[idx] = { ...this.requests[idx]!, status: 502, durationMs: Date.now() - req.ts }
+            this.onUpdate?.()
+          }
           if (this.ws?.readyState === WebSocket.WebSocket.OPEN) {
             this.ws.send(JSON.stringify(errorResponse(req.id, 502, 0)))
           }
@@ -410,7 +421,20 @@ export class OwnerClient {
       case 'requestRecords': {
         const records = (msg as RequestRecords).records
         for (const rec of records) {
-          if (!this.requests.find((r) => r.id === rec.id)) {
+          const fullData = {
+            headers: rec.headers,
+            body: rec.body,
+            bodyEncoding: rec.bodyEncoding as 'utf8' | 'base64' | undefined,
+            bodyTruncated: rec.bodyTruncated,
+            responseHeaders: rec.responseHeaders,
+            responseBody: rec.responseBody,
+            responseBodyEncoding: rec.responseBodyEncoding as 'utf8' | 'base64' | undefined,
+            responseBodyTruncated: rec.responseBodyTruncated,
+          }
+          const existing = this.requests.find((r) => r.id === rec.id)
+          if (existing) {
+            Object.assign(existing, fullData)
+          } else {
             this.requests.push({
               id: rec.id,
               method: rec.method,
@@ -418,6 +442,7 @@ export class OwnerClient {
               status: rec.status ?? null,
               durationMs: rec.durationMs ?? null,
               ts: rec.ts,
+              ...fullData,
             })
           }
         }

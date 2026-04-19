@@ -3,6 +3,9 @@ import { ConduitProvider } from './TunnelProvider'
 import { WatcherClient } from './WatcherClient'
 import { OwnerClient } from './OwnerClient'
 import { StatusBar } from './StatusBar'
+import { RequestInspectorPanel } from './RequestInspectorPanel'
+import type { IConduitClient } from './TunnelProvider'
+import type { RequestItem } from './WatcherClient'
 
 export async function activate(context: vscode.ExtensionContext) {
   const statusBar = new StatusBar()
@@ -18,17 +21,29 @@ export async function activate(context: vscode.ExtensionContext) {
     return ownerClient ?? watcherClient
   }
 
-  // ── Proxy mode ──────────────────────────────────────────────────────────────
-  if (mode === 'proxy' && workspaceRoot) {
-    ownerClient = new OwnerClient(statusBar, context.secrets, workspaceRoot)
+  // Chains both tree refresh and inspector panel update onto client.onUpdate.
+  function hookClient(client: IConduitClient): void {
+    client.onUpdate = () => {
+      provider.refresh()
+      RequestInspectorPanel.notifyUpdate(client)
+    }
+  }
 
-    // If CLI is already running as owner, fall back to watcher transparently
-    ownerClient.onFallbackToWatch = () => {
+  function makeOwnerClient(): OwnerClient {
+    const client = new OwnerClient(statusBar, context.secrets, workspaceRoot)
+    client.onFallbackToWatch = () => {
       ownerClient = null
       watcherClient = new WatcherClient(statusBar, context.secrets)
       provider.setClient(watcherClient)
+      hookClient(watcherClient)
       void watcherClient.tryAutoConnect()
     }
+    return client
+  }
+
+  // ── Proxy mode ──────────────────────────────────────────────────────────────
+  if (mode === 'proxy' && workspaceRoot) {
+    ownerClient = makeOwnerClient()
   }
 
   // ── Watch mode ──────────────────────────────────────────────────────────────
@@ -36,9 +51,9 @@ export async function activate(context: vscode.ExtensionContext) {
     watcherClient = new WatcherClient(statusBar, context.secrets)
   }
 
-  const provider = new ConduitProvider(
-    (activeClient() ?? new WatcherClient(statusBar, context.secrets)) as Parameters<typeof ConduitProvider.prototype.setClient>[0]
-  )
+  const initialClient = (activeClient() ?? new WatcherClient(statusBar, context.secrets)) as IConduitClient
+  const provider = new ConduitProvider(initialClient)
+  hookClient(initialClient)
 
   // Handle vscode://jimseiwert.conduit-relay/auth-callback?token=...
   const uriHandler = vscode.window.registerUriHandler({
@@ -58,8 +73,21 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.window.registerTreeDataProvider('conduit.requests', provider),
 
     vscode.commands.registerCommand('conduit.connect', () => {
-      const c = activeClient()
-      if (c) void c.connect()
+      if (mode === 'proxy' && workspaceRoot) {
+        // If we fell back to watcher (SLUG_IN_USE), recreate owner client so
+        // clicking Connect returns to proxy mode instead of staying as watcher.
+        if (!ownerClient) {
+          watcherClient?.disconnect()
+          watcherClient = null
+          ownerClient = makeOwnerClient()
+          provider.setClient(ownerClient)
+          hookClient(ownerClient)
+        }
+        void ownerClient.connect()
+      } else {
+        const c = activeClient()
+        if (c) void c.connect()
+      }
     }),
 
     vscode.commands.registerCommand('conduit.disconnect', () => {
@@ -81,7 +109,12 @@ export async function activate(context: vscode.ExtensionContext) {
       }
     }),
 
-    vscode.commands.registerCommand('conduit.replay', (item) => {
+    vscode.commands.registerCommand('conduit.inspectRequest', (item: RequestItem) => {
+      const client = activeClient()
+      if (client) RequestInspectorPanel.show(item, client, context)
+    }),
+
+    vscode.commands.registerCommand('conduit.replay', (item: RequestItem) => {
       activeClient()?.replay(item)
     }),
 

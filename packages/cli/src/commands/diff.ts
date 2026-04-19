@@ -39,7 +39,7 @@ export async function cmdDiff(
   id2: string,
   args: { relay?: string }
 ) {
-  const relayUrl = args.relay ?? process.env['TUNNEL_RELAY_URL'] ?? DEFAULT_RELAY
+  const relayUrl = args.relay ?? process.env['CONDUIT_RELAY_URL'] ?? DEFAULT_RELAY
   const cwd = process.cwd()
 
   let slug = 'watcher'

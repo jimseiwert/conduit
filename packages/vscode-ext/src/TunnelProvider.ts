@@ -4,6 +4,8 @@ import type { RequestItem } from './WatcherClient'
 export interface IConduitClient {
   requests: RequestItem[]
   onUpdate: (() => void) | null
+  sendFetch(ids: string[]): void
+  replay(item: RequestItem): void
 }
 
 export class RequestTreeItem extends vscode.TreeItem {
@@ -24,6 +26,11 @@ export class RequestTreeItem extends vscode.TreeItem {
     this.tooltip = new vscode.MarkdownString(lines.join('\n\n'))
     this.contextValue = request.status !== null ? 'completedRequest' : 'pendingRequest'
     this.iconPath = RequestTreeItem.iconForStatus(request.status)
+    this.command = {
+      command: 'conduit.inspectRequest',
+      title: 'Inspect Request',
+      arguments: [request],
+    }
   }
 
   private static iconForStatus(status: number | null): vscode.ThemeIcon {
@@ -40,9 +47,7 @@ export class ConduitProvider implements vscode.TreeDataProvider<RequestTreeItem>
   private _onDidChangeTreeData = new vscode.EventEmitter<RequestTreeItem | undefined>()
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event
 
-  constructor(private client: IConduitClient) {
-    client.onUpdate = () => this.refresh()
-  }
+  constructor(private client: IConduitClient) {}
 
   refresh(): void {
     this._onDidChangeTreeData.fire(undefined)
@@ -51,7 +56,6 @@ export class ConduitProvider implements vscode.TreeDataProvider<RequestTreeItem>
   /** Swap out the underlying client (e.g. owner → watcher fallback). */
   setClient(client: IConduitClient): void {
     this.client = client
-    client.onUpdate = () => this.refresh()
     this.refresh()
   }
 

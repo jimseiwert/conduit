@@ -13,6 +13,15 @@ export interface RequestItem {
   status: number | null
   durationMs: number | null
   ts: number
+  // Full data — populated on demand via fetchRequests
+  headers?: Record<string, string>
+  body?: string | null
+  bodyEncoding?: 'utf8' | 'base64'
+  bodyTruncated?: boolean
+  responseHeaders?: Record<string, string>
+  responseBody?: string | null
+  responseBodyEncoding?: 'utf8' | 'base64'
+  responseBodyTruncated?: boolean
 }
 
 /** Maximum requests to keep in memory (ring-buffer style). */
@@ -166,6 +175,12 @@ export class WatcherClient {
     this.token = null
   }
 
+  sendFetch(ids: string[]): void {
+    if (this.ws?.readyState === WebSocket.WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type: 'fetchRequests', ids }))
+    }
+  }
+
   /**
    * Send a replay request for the given tree item.
    * The relay re-issues the stored IncomingRequest to the conduit owner.
@@ -296,7 +311,20 @@ export class WatcherClient {
       case 'requestRecords': {
         const records = (parsed as RequestRecords).records
         for (const rec of records) {
-          if (!this.requests.find((r) => r.id === rec.id)) {
+          const fullData = {
+            headers: rec.headers,
+            body: rec.body,
+            bodyEncoding: rec.bodyEncoding as 'utf8' | 'base64' | undefined,
+            bodyTruncated: rec.bodyTruncated,
+            responseHeaders: rec.responseHeaders,
+            responseBody: rec.responseBody,
+            responseBodyEncoding: rec.responseBodyEncoding as 'utf8' | 'base64' | undefined,
+            responseBodyTruncated: rec.responseBodyTruncated,
+          }
+          const existing = this.requests.find((r) => r.id === rec.id)
+          if (existing) {
+            Object.assign(existing, fullData)
+          } else {
             this.requests.push({
               id: rec.id,
               method: rec.method,
@@ -304,6 +332,7 @@ export class WatcherClient {
               status: rec.status ?? null,
               durationMs: rec.durationMs ?? null,
               ts: rec.ts,
+              ...fullData,
             })
           }
         }
