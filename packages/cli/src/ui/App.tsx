@@ -1,10 +1,13 @@
 import React, { useState, useCallback } from 'react'
 import { Box, Text, useInput, useApp } from 'ink'
+import { spawn } from 'child_process'
 import type { IncomingRequest, RequestCompleted, RequestRecords, RequestRecord } from '@conduit/types'
 import type { ConduitClient } from '../ws/client.js'
 import { Header } from './Header.js'
 import { RequestList, type RequestEntry } from './RequestList.js'
 import { Inspector } from './Inspector.js'
+
+type UpdateState = 'idle' | 'updating' | 'updated' | 'error'
 
 interface AppProps {
   slug: string
@@ -28,6 +31,20 @@ export function App({ slug, url: initialUrl, port, client, version = '0.0.0-dev'
   const [records, setRecords] = useState<Map<string, RequestRecord>>(new Map())
   const [inspectorScroll, setInspectorScroll] = useState(0)
   const fetchedIds = React.useRef(new Set<string>())
+  const [latestVersion, setLatestVersion] = useState<string | null>(null)
+  const [updateState, setUpdateState] = useState<UpdateState>('idle')
+
+  // Background version check — fires once on mount, fails silently
+  React.useEffect(() => {
+    if (version === '0.0.0-dev') return
+    fetch('https://registry.npmjs.org/@conduit/cli/latest')
+      .then((r) => r.json())
+      .then((data: unknown) => {
+        const v = (data as { version?: string }).version
+        if (v && v !== version) setLatestVersion(v)
+      })
+      .catch(() => {})
+  }, [])
 
   // Wire up client events once on mount
   React.useEffect(() => {
@@ -194,6 +211,15 @@ export function App({ slug, url: initialUrl, port, client, version = '0.0.0-dev'
       setDiffBaseRecord(null)
       return
     }
+
+    if (input === 'u' && latestVersion && updateState === 'idle') {
+      setUpdateState('updating')
+      const proc = spawn('npm', ['install', '-g', '@conduit/cli'], { stdio: 'ignore' })
+      proc.on('close', (code) => {
+        setUpdateState(code === 0 ? 'updated' : 'error')
+      })
+      return
+    }
   })
 
   const selectedEntry = entries[selectedIndex]
@@ -261,12 +287,31 @@ export function App({ slug, url: initialUrl, port, client, version = '0.0.0-dev'
       {/* Footer */}
       <Box paddingX={1} borderStyle="single" borderTop={true} borderBottom={false} borderLeft={false} borderRight={false} justifyContent="space-between">
         <Box>
-          <Text color="gray">↑↓ navigate  j/k scroll  r replay  d diff  Esc clear diff  q quit</Text>
+          <Text color="gray">↑↓ navigate  j/k scroll  r replay  d diff  Esc clear diff{latestVersion && updateState === 'idle' ? '  u update' : ''}  q quit</Text>
           {diffBaseIndex !== null && (
             <Text color="yellow">  [diff mode: base #{diffBaseIndex + 1}]</Text>
           )}
         </Box>
-        <Text dimColor>v{version}</Text>
+        <Box>
+          {updateState === 'updating' && (
+            <Text color="yellow">updating to v{latestVersion}...  </Text>
+          )}
+          {updateState === 'updated' && (
+            <Text color="green">updated — restart to apply  </Text>
+          )}
+          {updateState === 'error' && (
+            <Text color="red">update failed  </Text>
+          )}
+          {latestVersion && updateState === 'idle' && (
+            <Text>
+              <Text dimColor>v{version}</Text>
+              <Text color="yellow">  →  v{latestVersion} available</Text>
+            </Text>
+          )}
+          {!latestVersion && (
+            <Text dimColor>v{version}</Text>
+          )}
+        </Box>
       </Box>
     </Box>
   )
