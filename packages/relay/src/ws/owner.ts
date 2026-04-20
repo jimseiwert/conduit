@@ -22,6 +22,7 @@ import type { StorageAdapter } from '../storage/interface.js'
 import { ConnectionRegistry } from './registry.js'
 import { PendingRequests } from './pending.js'
 import { issueSlugToken, tokenExpiresAt } from '../jwt.js'
+import jwt from 'jsonwebtoken'
 
 interface OwnerWsOptions {
   config: RelayConfig
@@ -120,13 +121,31 @@ export async function ownerWsPlugin(
           }
           const msg = result.data
 
-          // Gate: relay-level registration token (skipped when auth is not required)
-          if (config.authRequired && config.registrationToken) {
-            if (msg.registrationToken !== config.registrationToken) {
-              sendError(socket, 'AUTH_REQUIRED', 'Missing or invalid relay registration token')
-              socket.close()
-              return
+          // Gate: auth checks (skipped entirely when authRequired=false)
+          if (config.authRequired) {
+            if (msg.userToken) {
+              // Account-based auth: verify JWT minted by dashboard
+              try {
+                const payload = jwt.verify(msg.userToken, config.jwtSecret) as Record<string, unknown>
+                if (payload['type'] !== 'cli' || typeof payload['userId'] !== 'string') {
+                  sendError(socket, 'AUTH_REQUIRED', 'Invalid CLI token — run conduit login')
+                  socket.close()
+                  return
+                }
+              } catch {
+                sendError(socket, 'AUTH_REQUIRED', 'Expired or invalid CLI token — run conduit login')
+                socket.close()
+                return
+              }
+            } else if (config.registrationToken) {
+              // Registration token gate (self-hosted with shared secret)
+              if (msg.registrationToken !== config.registrationToken) {
+                sendError(socket, 'AUTH_REQUIRED', 'Missing or invalid relay registration token')
+                socket.close()
+                return
+              }
             }
+            // No userToken and no registrationToken → open (backward compat until login is enforced)
           }
 
           // Gate: slug must not have an active owner (grace period OK — same client may reconnect)

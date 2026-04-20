@@ -25,6 +25,8 @@ export const RegisterTunnelSchema = z.object({
   token: z.string().optional(),
   /** Relay-level gate token (RELAY_REGISTRATION_TOKEN env var). */
   registrationToken: z.string().optional(),
+  /** User JWT from dashboard login (conduit login). Used for account-based auth on hosted relay. */
+  userToken: z.string().optional(),
   httpEnabled: z.boolean().optional().default(false),
 })
 export type RegisterTunnel = z.infer<typeof RegisterTunnelSchema>

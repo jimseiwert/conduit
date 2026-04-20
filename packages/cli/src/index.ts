@@ -11,7 +11,8 @@ USAGE
 
 COMMANDS
   start               Start the conduit and open the TUI dashboard
-  auth                Authenticate with the relay server
+  login               Log in to Conduit (opens browser)
+  logout              Log out and clear stored credentials
   diff <id1> <id2>    Show diff between two recorded requests
   history             Show recent request history
   replay <id>         Replay a previously recorded request
@@ -22,8 +23,8 @@ OPTIONS (start)
   --http              Enable HTTP (not just HTTPS) on the conduit
   --relay <url>       Relay WebSocket URL (default: wss://relay.conduitrelay.com)
 
-OPTIONS (auth)
-  --relay <url>       Relay base URL
+OPTIONS (login)
+  --dashboard <url>   Dashboard URL (default: https://app.conduitrelay.com)
 
 OPTIONS (diff / history / replay / token)
   --relay <url>       Relay WebSocket URL
@@ -36,9 +37,9 @@ GLOBAL
   --version           Show version
 
 EXAMPLES
+  conduit login
   conduit start
   conduit start --port 3001
-  conduit auth
   conduit history --limit 20
   conduit replay 550e8400-e29b-41d4-a716-446655440000
   conduit diff <id1> <id2>
@@ -108,10 +109,25 @@ async function main(): Promise<void> {
         break
       }
 
+      case 'login': {
+        const { cmdLogin } = await import('./commands/login.js')
+        await cmdLogin({
+          dashboard: flags['dashboard'] as string | undefined,
+        })
+        break
+      }
+
+      case 'logout': {
+        const { cmdLogout } = await import('./commands/logout.js')
+        cmdLogout()
+        break
+      }
+
       case 'auth': {
-        const { cmdAuth } = await import('./commands/auth.js')
-        await cmdAuth({
-          relay: flags['relay'] as string | undefined,
+        // Legacy alias for login
+        const { cmdLogin } = await import('./commands/login.js')
+        await cmdLogin({
+          dashboard: flags['dashboard'] as string | undefined,
         })
         break
       }

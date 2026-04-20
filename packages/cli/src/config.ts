@@ -105,6 +105,52 @@ export function saveProjectConfig(cwd: string, entry: ProjectEntry): void {
   fs.renameSync(tmpPath, configPath)
 }
 
+// ─── Credentials (stored token from conduit login) ───────────────────────────
+
+export interface StoredCredentials {
+  token: string
+  userId: string
+  email: string
+  dashboardUrl: string
+  createdAt: number
+}
+
+function getCredentialsPath(): string {
+  return path.join(getHomeConfigDir(), 'credentials.json')
+}
+
+export function loadCredentials(): StoredCredentials | null {
+  const credPath = getCredentialsPath()
+  if (!fs.existsSync(credPath)) return null
+  try {
+    return JSON.parse(fs.readFileSync(credPath, 'utf8')) as StoredCredentials
+  } catch {
+    return null
+  }
+}
+
+export function saveCredentials(creds: StoredCredentials): void {
+  const configDir = getHomeConfigDir()
+  if (!fs.existsSync(configDir)) {
+    fs.mkdirSync(configDir, { recursive: true })
+  }
+  const credPath = getCredentialsPath()
+  const tmpPath = credPath + '.tmp'
+  fs.writeFileSync(tmpPath, JSON.stringify(creds, null, 2) + '\n', 'utf8')
+  fs.renameSync(tmpPath, credPath)
+}
+
+export function clearCredentials(): boolean {
+  const credPath = getCredentialsPath()
+  if (fs.existsSync(credPath)) {
+    fs.unlinkSync(credPath)
+    return true
+  }
+  return false
+}
+
+// ─── Global config (relay URL, dashboard URL) ─────────────────────────────────
+
 /**
  * Loads the global config (relay URL, dashboard URL) from ~/.conduit/projects.json.
  */

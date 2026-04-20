@@ -1,7 +1,7 @@
 import React from 'react'
 import { render } from 'ink'
 import jwt from 'jsonwebtoken'
-import { loadProjectConfig, saveProjectConfig, generateSlug } from '../config.js'
+import { loadProjectConfig, saveProjectConfig, generateSlug, loadCredentials } from '../config.js'
 import { ConduitClient } from '../ws/client.js'
 import { App } from '../ui/App.js'
 
@@ -90,12 +90,16 @@ export async function cmdStart(args: {
     onDisconnect() {},
   }
 
+  const credentials = loadCredentials()
+  const userToken = credentials?.token
+
   const client = new ConduitClient(
     effectiveRelay,
     slug,
     token,
     {
       registrationToken: process.env['CONDUIT_REGISTRATION_TOKEN'],
+      userToken,
       httpEnabled,
       port,
       cwd,

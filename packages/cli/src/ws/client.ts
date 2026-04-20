@@ -41,6 +41,7 @@ export class ConduitClient {
     private config: {
       jwtSecret?: string
       registrationToken?: string
+      userToken?: string
       httpEnabled?: boolean
       port?: number
       cwd?: string
@@ -115,6 +116,9 @@ export class ConduitClient {
       }
       if (this.config.registrationToken) {
         registerMsg['registrationToken'] = this.config.registrationToken
+      }
+      if (this.config.userToken) {
+        registerMsg['userToken'] = this.config.userToken
       }
       ws.send(JSON.stringify(registerMsg))
     })
