@@ -120,8 +120,8 @@ export async function ownerWsPlugin(
           }
           const msg = result.data
 
-          // Gate: relay-level registration token
-          if (config.registrationToken) {
+          // Gate: relay-level registration token (skipped when auth is not required)
+          if (config.authRequired && config.registrationToken) {
             if (msg.registrationToken !== config.registrationToken) {
               sendError(socket, 'AUTH_REQUIRED', 'Missing or invalid relay registration token')
               socket.close()
@@ -138,7 +138,11 @@ export async function ownerWsPlugin(
 
           let finalToken: string
 
-          if (msg.token) {
+          if (!config.authRequired) {
+            // Auth disabled: open relay — register/reclaim any slug without token validation.
+            finalToken = issueSlugToken(slug, config.jwtSecret)
+            await storage.registerSlug(slug, finalToken, tokenExpiresAt())
+          } else if (msg.token) {
             // Reconnect path: validate existing token
             const validity = await storage.validateSlug(slug, msg.token)
             if (validity === 'valid') {

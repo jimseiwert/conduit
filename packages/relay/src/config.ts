@@ -1,6 +1,7 @@
 export interface RelayConfig {
   port: number
   jwtSecret: string
+  authRequired: boolean
   registrationToken?: string
   ringBufferSize: number
   maxBodyBytes: number
@@ -50,6 +51,7 @@ export function loadConfig(): RelayConfig {
   return {
     port: parseInt(process.env['PORT'] ?? '3000', 10),
     jwtSecret,
+    authRequired: process.env['RELAY_AUTH_REQUIRED'] !== 'false',
     registrationToken: process.env['RELAY_REGISTRATION_TOKEN'],
     ringBufferSize: parseInt(process.env['RING_BUFFER_SIZE'] ?? '1000', 10),
     maxBodyBytes: parseInt(process.env['MAX_BODY_BYTES'] ?? '1048576', 10),

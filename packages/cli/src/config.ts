@@ -11,8 +11,14 @@ export interface ProjectEntry {
   relayUrl?: string
 }
 
+export interface GlobalConfig {
+  relayUrl?: string
+  dashboardUrl?: string
+}
+
 interface HomeConfig {
   version: number
+  global?: GlobalConfig
   projects: Record<string, ProjectEntry>
 }
 
@@ -97,6 +103,56 @@ export function saveProjectConfig(cwd: string, entry: ProjectEntry): void {
   const tmpPath = configPath + '.tmp'
   fs.writeFileSync(tmpPath, JSON.stringify(config, null, 2) + '\n', 'utf8')
   fs.renameSync(tmpPath, configPath)
+}
+
+/**
+ * Loads the global config (relay URL, dashboard URL) from ~/.conduit/projects.json.
+ */
+export function loadGlobalConfig(): GlobalConfig {
+  return readHomeConfig().global ?? {}
+}
+
+/**
+ * Saves global config fields (relay URL, dashboard URL) into ~/.conduit/projects.json.
+ */
+export function saveGlobalConfig(global: GlobalConfig): void {
+  const configDir = getHomeConfigDir()
+  const configPath = getHomeConfigPath()
+
+  if (!fs.existsSync(configDir)) {
+    fs.mkdirSync(configDir, { recursive: true })
+  }
+
+  const config = readHomeConfig()
+  config.global = { ...config.global, ...global }
+
+  const tmpPath = configPath + '.tmp'
+  fs.writeFileSync(tmpPath, JSON.stringify(config, null, 2) + '\n', 'utf8')
+  fs.renameSync(tmpPath, configPath)
+}
+
+/**
+ * Returns the effective relay WebSocket URL, checking in order:
+ * CONDUIT_RELAY_URL env var → global config → default
+ */
+export function getRelayUrl(): string {
+  return (
+    process.env['CONDUIT_RELAY_URL'] ??
+    loadGlobalConfig().relayUrl ??
+    'wss://relay.conduitrelay.com'
+  )
+}
+
+/**
+ * Returns the effective dashboard URL for auth, checking in order:
+ * CONDUIT_DASHBOARD_URL env var → global config → default
+ */
+export function getDashboardUrl(): string {
+  return (
+    process.env['CONDUIT_DASHBOARD_URL'] ??
+    loadGlobalConfig().dashboardUrl ??
+    'https://app.conduitrelay.com'
+  )
 }
 
 /**

@@ -54,43 +54,45 @@ export async function watcherWsPlugin(
     async (socket: WebSocket, req: FastifyRequest<{ Params: { slug: string } }>) => {
       const { slug } = req.params
 
-      // Authenticate via Authorization: Bearer <token> header
-      const authHeader = req.headers['authorization'] ?? ''
-      const token = authHeader.startsWith('Bearer ')
-        ? authHeader.slice(7).trim()
-        : ''
+      // Authenticate via Authorization: Bearer <token> header (skipped when auth is not required)
+      if (config.authRequired) {
+        const authHeader = req.headers['authorization'] ?? ''
+        const token = authHeader.startsWith('Bearer ')
+          ? authHeader.slice(7).trim()
+          : ''
 
-      if (!token) {
-        sendError(socket, 'AUTH_REQUIRED', 'Authorization header with Bearer token required')
-        socket.close()
-        return
-      }
-
-      const validity = await storage.validateSlug(slug, token)
-      if (validity !== 'valid') {
-        // Also accept user tokens issued by browser login (have userId claim)
-        let allowedAsUser = false
-        try {
-          const payload = jwt.verify(token, config.jwtSecret) as Record<string, unknown>
-          if (typeof payload['userId'] === 'string') {
-            allowedAsUser = true
-          }
-        } catch {
-          // Invalid user token — fall through to error
-        }
-
-        if (!allowedAsUser) {
-          const code: TunnelError['code'] =
-            validity === 'expired' ? 'INVALID_TOKEN' : 'AUTH_REQUIRED'
-          const message =
-            validity === 'expired'
-              ? 'Token expired — run conduit token refresh'
-              : validity === 'invalid'
-                ? 'Invalid token for this slug'
-                : 'Slug not found'
-          sendError(socket, code, message)
+        if (!token) {
+          sendError(socket, 'AUTH_REQUIRED', 'Authorization header with Bearer token required')
           socket.close()
           return
+        }
+
+        const validity = await storage.validateSlug(slug, token)
+        if (validity !== 'valid') {
+          // Also accept user tokens issued by browser login (have userId claim)
+          let allowedAsUser = false
+          try {
+            const payload = jwt.verify(token, config.jwtSecret) as Record<string, unknown>
+            if (typeof payload['userId'] === 'string') {
+              allowedAsUser = true
+            }
+          } catch {
+            // Invalid user token — fall through to error
+          }
+
+          if (!allowedAsUser) {
+            const code: TunnelError['code'] =
+              validity === 'expired' ? 'INVALID_TOKEN' : 'AUTH_REQUIRED'
+            const message =
+              validity === 'expired'
+                ? 'Token expired — run conduit token refresh'
+                : validity === 'invalid'
+                  ? 'Invalid token for this slug'
+                  : 'Slug not found'
+            sendError(socket, code, message)
+            socket.close()
+            return
+          }
         }
       }
 

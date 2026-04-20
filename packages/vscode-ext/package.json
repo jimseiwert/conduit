@@ -54,7 +54,12 @@
         "conduit.relayUrl": {
           "type": "string",
           "default": "wss://relay.conduitrelay.com",
-          "description": "Relay WebSocket URL"
+          "description": "Relay WebSocket URL. Change this when using a self-hosted relay."
+        },
+        "conduit.dashboardUrl": {
+          "type": "string",
+          "default": "https://app.conduitrelay.com",
+          "description": "Dashboard URL used for authentication. Change this when using a self-hosted dashboard."
         },
         "conduit.autoConnect": {
           "type": "boolean",
