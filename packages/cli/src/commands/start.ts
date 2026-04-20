@@ -93,6 +93,14 @@ export async function cmdStart(args: {
   const credentials = loadCredentials()
   const userToken = credentials?.token
 
+  // For the hosted relay, require login. Self-hosted relays use registrationToken
+  // or RELAY_AUTH_REQUIRED=false, so we only gate on the default production relay.
+  const isProductionRelay = effectiveRelay.includes('conduitrelay.com')
+  if (isProductionRelay && !userToken) {
+    console.error('Not logged in. Run `conduit login` to authenticate.')
+    process.exit(1)
+  }
+
   const client = new ConduitClient(
     effectiveRelay,
     slug,

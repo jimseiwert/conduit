@@ -144,8 +144,12 @@ export async function ownerWsPlugin(
                 socket.close()
                 return
               }
+            } else {
+              // No userToken and no registrationToken — auth is required, reject
+              sendError(socket, 'AUTH_REQUIRED', 'Authentication required — run conduit login')
+              socket.close()
+              return
             }
-            // No userToken and no registrationToken → open (backward compat until login is enforced)
           }
 
           // Gate: slug must not have an active owner (grace period OK — same client may reconnect)

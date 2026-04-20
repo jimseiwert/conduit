@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { signIn, signUp } from '@/lib/auth-client'
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -13,19 +14,23 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
+  // Only allow relative paths to prevent open-redirect attacks
+  const rawCallback = searchParams.get('callbackUrl') ?? ''
+  const callbackUrl = rawCallback.startsWith('/') ? rawCallback : '/dashboard'
+
   async function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
     setLoading(true)
     try {
       if (mode === 'signin') {
-        const { error } = await signIn.email({ email, password, callbackURL: '/dashboard' })
+        const { error } = await signIn.email({ email, password, callbackURL: callbackUrl })
         if (error) throw new Error(error.message)
       } else {
-        const { error } = await signUp.email({ email, password, name, callbackURL: '/dashboard' })
+        const { error } = await signUp.email({ email, password, name, callbackURL: callbackUrl })
         if (error) throw new Error(error.message)
       }
-      router.push('/dashboard')
+      router.push(callbackUrl)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
@@ -35,7 +40,7 @@ export default function LoginPage() {
 
   async function handleOAuth(provider: 'google' | 'github') {
     setError(null)
-    await signIn.social({ provider, callbackURL: '/dashboard' })
+    await signIn.social({ provider, callbackURL: callbackUrl })
   }
 
   return (
@@ -126,5 +131,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   )
 }

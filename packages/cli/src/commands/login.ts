@@ -28,11 +28,14 @@ function waitForCallback(port: number): Promise<{ token: string; userId: string;
       const email = url.searchParams.get('email') ?? ''
 
       if (token && userId) {
-        res.writeHead(200, { 'Content-Type': 'text/html' })
+        // Connection: close tells the browser not to reuse this connection,
+        // so server.close() can fully drain and the process can exit cleanly.
+        res.writeHead(200, { 'Content-Type': 'text/html', 'Connection': 'close' })
         res.end(
           `<html><body style="font-family:sans-serif;max-width:500px;margin:60px auto;text-align:center">` +
           `<h2>Logged in!</h2><p>You can close this tab and return to your terminal.</p></body></html>`
         )
+        clearTimeout(timeoutHandle)
         server.close()
         resolve({ token, userId, email })
       } else {
@@ -44,7 +47,7 @@ function waitForCallback(port: number): Promise<{ token: string; userId: string;
     server.on('error', reject)
     server.listen(port, '127.0.0.1')
 
-    setTimeout(() => {
+    const timeoutHandle = setTimeout(() => {
       server.close()
       reject(new Error('Login timed out after 5 minutes. Please try again.'))
     }, 5 * 60 * 1000)
