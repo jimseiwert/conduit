@@ -2,6 +2,7 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { listSlugs, createSlug } from '@/lib/relay'
+import { revalidatePath } from 'next/cache'
 import SlugList from './slug-list'
 
 export default async function DashboardPage() {
@@ -34,6 +35,7 @@ export default async function DashboardPage() {
             action={async () => {
               'use server'
               await createSlug(session.user.id)
+              revalidatePath('/dashboard')
             }}
           >
             <button

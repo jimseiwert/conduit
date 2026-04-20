@@ -59,8 +59,6 @@ export async function adminRoutes(
       const expiresAt = Math.floor(Date.now() / 1000) + ONE_YEAR_SECONDS
       const webhookUrl = `${config.relayProto}://${config.relayDomain}/${slug}`
 
-      // Register the slug so conduit routes accept it
-      await storage.registerSlug(slug, token, expiresAt)
       const record = await storage.createAdminSlug(userId, slug, token, webhookUrl, expiresAt)
 
       return reply.code(201).send(record)
