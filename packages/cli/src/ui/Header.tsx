@@ -21,7 +21,7 @@ export function Header({ url, connected, watcherCount, userDisplay }: HeaderProp
   const displayUrl = url.length <= maxUrl ? url : url.slice(0, maxUrl - 1) + '…'
 
   return (
-    <Box flexDirection="row" justifyContent="space-between" paddingX={1} borderStyle="single" borderBottom={true} borderTop={false} borderLeft={false} borderRight={false}>
+    <Box flexDirection="row" justifyContent="space-between" width="100%" paddingX={1} borderStyle="single" borderBottom={true} borderTop={false} borderLeft={false} borderRight={false}>
       <Box flexDirection="row">
         <Text bold color="cyan">Conduit</Text>
         <Text>  </Text>
