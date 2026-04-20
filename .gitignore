@@ -20,3 +20,4 @@ bun.lockb
 .DS_Store
 .gstack/
 .playwright-mcp
+.vercel
