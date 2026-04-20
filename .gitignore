@@ -19,3 +19,4 @@ bun.lockb
 # macOS
 .DS_Store
 .gstack/
+.playwright-mcp
