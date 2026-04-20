@@ -1,5 +1,6 @@
+import { randomBytes } from 'crypto'
 import pg from 'pg'
-import type { RequestRecord, StorageAdapter } from './interface.js'
+import type { AdminSlugRecord, RequestRecord, StorageAdapter } from './interface.js'
 
 const { Pool } = pg
 
@@ -47,8 +48,13 @@ export class PostgresStorageAdapter implements StorageAdapter {
         slug TEXT PRIMARY KEY,
         token TEXT NOT NULL,
         created_at BIGINT NOT NULL,
-        expires_at BIGINT NOT NULL
+        expires_at BIGINT NOT NULL,
+        user_id TEXT,
+        webhook_url TEXT
       );
+      ALTER TABLE slugs ADD COLUMN IF NOT EXISTS user_id TEXT;
+      ALTER TABLE slugs ADD COLUMN IF NOT EXISTS webhook_url TEXT;
+      CREATE INDEX IF NOT EXISTS idx_slugs_user_id ON slugs(user_id);
     `)
     this.initialized = true
   }
@@ -166,6 +172,44 @@ export class PostgresStorageAdapter implements StorageAdapter {
     const result = await this.pool.query(
       'UPDATE slugs SET token = $1, expires_at = $2 WHERE slug = $3 AND token = $4',
       [newToken, expiresAt, slug, oldToken],
+    )
+    return (result.rowCount ?? 0) > 0
+  }
+
+  async listAdminSlugs(userId: string): Promise<AdminSlugRecord[]> {
+    await this.ensureSchema()
+    const result = await this.pool.query<{
+      slug: string; token: string; user_id: string; webhook_url: string | null; created_at: string; expires_at: string
+    }>(
+      'SELECT slug, token, user_id, webhook_url, created_at, expires_at FROM slugs WHERE user_id = $1 ORDER BY created_at DESC',
+      [userId],
+    )
+    return result.rows.map(row => ({
+      slug: row.slug,
+      token: row.token,
+      userId: row.user_id,
+      webhookUrl: row.webhook_url ?? '',
+      createdAt: parseInt(row.created_at, 10),
+      expiresAt: parseInt(row.expires_at, 10),
+    }))
+  }
+
+  async createAdminSlug(userId: string, slug: string, token: string, webhookUrl: string, expiresAt: number): Promise<AdminSlugRecord> {
+    await this.ensureSchema()
+    const nowSeconds = Math.floor(Date.now() / 1000)
+    await this.pool.query(
+      `INSERT INTO slugs (slug, token, created_at, expires_at, user_id, webhook_url)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [slug, token, nowSeconds, expiresAt, userId, webhookUrl],
+    )
+    return { slug, token, userId, webhookUrl, createdAt: nowSeconds, expiresAt }
+  }
+
+  async deleteAdminSlug(slug: string, userId: string): Promise<boolean> {
+    await this.ensureSchema()
+    const result = await this.pool.query(
+      'DELETE FROM slugs WHERE slug = $1 AND user_id = $2',
+      [slug, userId],
     )
     return (result.rowCount ?? 0) > 0
   }

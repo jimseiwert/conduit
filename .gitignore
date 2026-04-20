@@ -18,3 +18,4 @@ bun.lockb
 
 # macOS
 .DS_Store
+.gstack/

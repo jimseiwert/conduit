@@ -10,6 +10,7 @@ export interface RelayConfig {
   databaseUrl?: string
   relayDomain: string
   relayProto: string
+  adminSecret?: string
   authProvider?: 'oidc' | 'msal'
   // OIDC config
   oidcIssuer?: string
@@ -58,6 +59,7 @@ export function loadConfig(): RelayConfig {
     databaseUrl: process.env['DATABASE_URL'],
     relayDomain: process.env['RELAY_DOMAIN'] ?? 'relay.conduitrelay.com',
     relayProto: process.env['RELAY_PROTO'] ?? 'https',
+    adminSecret: process.env['RELAY_ADMIN_SECRET'],
     authProvider,
     oidcIssuer: process.env['OIDC_ISSUER'],
     oidcClientId: process.env['OIDC_CLIENT_ID'],

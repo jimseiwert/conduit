@@ -4,7 +4,7 @@
   "private": true,
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "apps/dashboard"
   ],
   "scripts": {
     "build": "bun run build:types && bun run build:relay && bun run build:cli",

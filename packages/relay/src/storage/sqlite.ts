@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3'
-import type { RequestRecord, StorageAdapter } from './interface.js'
+import type { AdminSlugRecord, RequestRecord, StorageAdapter } from './interface.js'
 
 interface SqliteOptions {
   path: string
@@ -151,6 +151,18 @@ export class SqliteStorageAdapter implements StorageAdapter {
     `)
     const result = stmt.run(newToken, expiresAt, slug, oldToken)
     return result.changes > 0
+  }
+
+  async listAdminSlugs(_userId: string): Promise<AdminSlugRecord[]> {
+    throw new Error('Admin methods not supported on SqliteStorageAdapter')
+  }
+
+  async createAdminSlug(_userId: string, _slug: string, _token: string, _webhookUrl: string, _expiresAt: number): Promise<AdminSlugRecord> {
+    throw new Error('Admin methods not supported on SqliteStorageAdapter')
+  }
+
+  async deleteAdminSlug(_slug: string, _userId: string): Promise<boolean> {
+    throw new Error('Admin methods not supported on SqliteStorageAdapter')
   }
 
   async close(): Promise<void> {

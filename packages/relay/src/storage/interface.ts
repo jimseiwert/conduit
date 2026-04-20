@@ -21,10 +21,22 @@ export interface RequestRecord {
   ts: number                // Unix milliseconds
 }
 
+export interface AdminSlugRecord {
+  slug: string
+  token: string
+  userId: string
+  webhookUrl: string
+  createdAt: number
+  expiresAt: number
+}
+
 export interface StorageAdapter {
   insertRequest(req: RequestRecord): Promise<void>
   fetchRequests(slug: string, ids?: string[], limit?: number): Promise<RequestRecord[]>
   registerSlug(slug: string, token: string, expiresAt: number): Promise<void>
+  listAdminSlugs(userId: string): Promise<AdminSlugRecord[]>
+  createAdminSlug(userId: string, slug: string, token: string, webhookUrl: string, expiresAt: number): Promise<AdminSlugRecord>
+  deleteAdminSlug(slug: string, userId: string): Promise<boolean>
   /**
    * Validates that the given token matches the stored token for the slug and
    * that the token has not expired.

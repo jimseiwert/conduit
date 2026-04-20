@@ -1,4 +1,4 @@
-import type { RequestRecord, StorageAdapter } from './interface.js'
+import type { AdminSlugRecord, RequestRecord, StorageAdapter } from './interface.js'
 
 interface SlugEntry {
   token: string
@@ -65,6 +65,18 @@ export class MemoryStorageAdapter implements StorageAdapter {
     if (!entry || entry.token !== oldToken) return false
     this.slugs.set(slug, { token: newToken, expiresAt })
     return true
+  }
+
+  async listAdminSlugs(_userId: string): Promise<AdminSlugRecord[]> {
+    throw new Error('Admin methods not supported on MemoryStorageAdapter')
+  }
+
+  async createAdminSlug(_userId: string, _slug: string, _token: string, _webhookUrl: string, _expiresAt: number): Promise<AdminSlugRecord> {
+    throw new Error('Admin methods not supported on MemoryStorageAdapter')
+  }
+
+  async deleteAdminSlug(_slug: string, _userId: string): Promise<boolean> {
+    throw new Error('Admin methods not supported on MemoryStorageAdapter')
   }
 
   async close(): Promise<void> {

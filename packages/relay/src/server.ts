@@ -9,6 +9,7 @@ import { watcherWsPlugin } from './ws/watcher.js'
 import { conduitRoutes } from './routes/conduit.js'
 import { renewRoutes } from './routes/renew.js'
 import { authRoutes } from './routes/auth.js'
+import { adminRoutes } from './routes/admin.js'
 
 export { ConnectionRegistry } from './ws/registry.js'
 export { PendingRequests } from './ws/pending.js'
@@ -64,6 +65,7 @@ export async function createServer(
   await app.register(conduitRoutes, { config, storage, registry, pending })
   await app.register(renewRoutes, { config, storage })
   await app.register(authRoutes, { config })
+  await app.register(adminRoutes, { config, storage })
 
   return app
 }

@@ -1,0 +1,8 @@
+{
+  "/api/auth/[...all]/route": "/api/auth/[...all]",
+  "/_not-found/page": "/_not-found",
+  "/dashboard/page": "/dashboard",
+  "/dashboard/[slug]/page": "/dashboard/[slug]",
+  "/login/page": "/login",
+  "/page": "/"
+}
