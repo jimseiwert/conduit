@@ -214,7 +214,12 @@ export function App({ slug, url: initialUrl, port, client, version = '0.0.0-dev'
 
     if (input === 'u' && latestVersion && updateState === 'idle') {
       setUpdateState('updating')
-      const proc = spawn('npm', ['install', '-g', '@conduit/cli'], { stdio: 'ignore' })
+      // Re-run the install script — same mechanism as the original install,
+      // writes to ~/.local/bin (no sudo) by default.
+      const proc = spawn('bash', ['-c', 'curl -fsSL https://get.conduitrelay.com/conduit | bash'], {
+        stdio: 'ignore',
+        env: { ...process.env, CONDUIT_INSTALL_DIR: process.env['CONDUIT_INSTALL_DIR'] ?? `${process.env['HOME']}/.local/bin` },
+      })
       proc.on('close', (code) => {
         setUpdateState(code === 0 ? 'updated' : 'error')
       })

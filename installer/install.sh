@@ -6,7 +6,9 @@ set -euo pipefail
 
 REPO="jimseiwert/conduit"
 BINARY="conduit"
-INSTALL_DIR="${CONDUIT_INSTALL_DIR:-/usr/local/bin}"
+DEFAULT_INSTALL_DIR="$HOME/.local/bin"
+INSTALL_DIR="${CONDUIT_INSTALL_DIR:-$DEFAULT_INSTALL_DIR}"
+mkdir -p "$INSTALL_DIR"
 
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
@@ -51,5 +53,14 @@ else
 fi
 
 echo ""
-echo "Conduit CLI installed successfully!"
+echo "Conduit CLI installed successfully → ${INSTALL_DIR}/${BINARY}"
+
+# Remind the user if the install dir isn't on their PATH
+if [[ ":$PATH:" != *":${INSTALL_DIR}:"* ]]; then
+  echo ""
+  echo "  Add this to your shell profile to put conduit on your PATH:"
+  echo "    export PATH=\"\$HOME/.local/bin:\$PATH\""
+fi
+
+echo ""
 echo "Run: conduit --help"
