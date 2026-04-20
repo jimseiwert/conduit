@@ -8,6 +8,10 @@
     <a href="https://marketplace.visualstudio.com/items?itemName=jimseiwert.conduit-relay"><img src="https://img.shields.io/badge/VS%20Code-extension-A78BFA?style=flat-square" alt="VS Code Extension"/></a>
     <a href="LICENSE"><img src="https://img.shields.io/github/license/jimseiwert/conduit?style=flat-square&color=38BDF8" alt="License"/></a>
   </p>
+  <p>
+    <a href="https://github.com/sponsors/jimseiwert"><img src="https://img.shields.io/badge/sponsor-♥-ea4aaa?style=flat-square" alt="Sponsor"/></a>
+    <a href="https://ko-fi.com/jimseiwert"><img src="https://img.shields.io/badge/ko--fi-☕-FF5E5B?style=flat-square" alt="Ko-fi"/></a>
+  </p>
 </div>
 
 ---
@@ -318,3 +322,14 @@ bun test             # Run the full test suite
 ```
 
 The wire protocol is defined in `packages/types/src/`. All messages are Zod-validated JSON over WebSocket. If you're adding a new message type, start there.
+
+## Sponsoring
+
+Conduit is free and open source. Hosting the public relay, database, and CDN costs roughly **$30/month**.
+
+If Conduit saves you time, consider sponsoring — it keeps the project alive and the hosted relay running for everyone.
+
+- [**GitHub Sponsors**](https://github.com/sponsors/jimseiwert) — one-time or monthly
+- [**Ko-fi**](https://ko-fi.com/jimseiwert) — buy a coffee
+
+The goal is never to paywall features. Sponsorship just covers the lights.
