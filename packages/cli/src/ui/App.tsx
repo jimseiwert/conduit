@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react'
-import { Box, Text, useInput, useApp } from 'ink'
+import { Box, Text, useInput, useApp, useStdout } from 'ink'
 import { spawn } from 'child_process'
 import type { IncomingRequest, RequestCompleted, RequestRecords, RequestRecord } from '@conduit/types'
 import type { ConduitClient } from '../ws/client.js'
@@ -15,10 +15,13 @@ interface AppProps {
   port: number
   client: ConduitClient
   version?: string
+  userDisplay?: string
 }
 
-export function App({ slug, url: initialUrl, port, client, version = '0.0.0-dev' }: AppProps) {
+export function App({ slug, url: initialUrl, port, client, version = '0.0.0-dev', userDisplay }: AppProps) {
   const { exit } = useApp()
+  const { stdout } = useStdout()
+  const rows = stdout?.rows ?? 24
 
   const [connected, setConnected] = useState(false)
   const [url, setUrl] = useState(initialUrl)
@@ -236,8 +239,10 @@ export function App({ slug, url: initialUrl, port, client, version = '0.0.0-dev'
     : null
 
   return (
-    <Box flexDirection="column" height={process.stdout.rows}>
-      <Header url={url} connected={connected} watcherCount={watcherCount} />
+    <Box flexDirection="column" height={rows}>
+      <Box flexShrink={0}>
+        <Header url={url} connected={connected} watcherCount={watcherCount} userDisplay={userDisplay} />
+      </Box>
 
       <Box flexDirection="row" flexGrow={1}>
         {/* Left pane: request list */}
@@ -284,13 +289,13 @@ export function App({ slug, url: initialUrl, port, client, version = '0.0.0-dev'
 
       {/* Error banner */}
       {errorMsg && (
-        <Box paddingX={1} borderStyle="single" borderTop={true} borderBottom={false} borderLeft={false} borderRight={false}>
+        <Box flexShrink={0} paddingX={1} borderStyle="single" borderTop={true} borderBottom={false} borderLeft={false} borderRight={false}>
           <Text color="red" bold>Error: {errorMsg}</Text>
         </Box>
       )}
 
       {/* Footer */}
-      <Box paddingX={1} borderStyle="single" borderTop={true} borderBottom={false} borderLeft={false} borderRight={false} justifyContent="space-between">
+      <Box flexShrink={0} paddingX={1} borderStyle="single" borderTop={true} borderBottom={false} borderLeft={false} borderRight={false} justifyContent="space-between">
         <Box>
           <Text color="gray">↑↓ navigate  j/k scroll  r replay  d diff  Esc clear diff{latestVersion && updateState === 'idle' ? '  u update' : ''}  q quit</Text>
           {diffBaseIndex !== null && (

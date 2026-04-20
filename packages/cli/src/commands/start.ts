@@ -128,6 +128,7 @@ export async function cmdStart(args: {
       port,
       client,
       version: CLI_VERSION,
+      userDisplay: credentials?.email || credentials?.userId,
     })
   )
 
