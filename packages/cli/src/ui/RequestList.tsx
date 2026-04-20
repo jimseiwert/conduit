@@ -1,5 +1,5 @@
 import React from 'react'
-import { Box, Text } from 'ink'
+import { Box, Text, useStdout } from 'ink'
 import type { IncomingRequest, RequestCompleted } from '@conduit/types'
 
 export interface RequestEntry {
@@ -13,7 +13,8 @@ interface RequestListProps {
   diffBaseIndex: number | null
 }
 
-const MAX_ROWS = 20
+// Header(2) + requests label(1) + column header(1) + footer(2)
+const CHROME_ROWS = 6
 
 // Column widths (chars)
 const W_SEL  = 2   // selector
@@ -61,8 +62,16 @@ function pad(s: string, len: number): string {
 }
 
 export function RequestList({ entries, selectedIndex, diffBaseIndex }: RequestListProps) {
-  const start = Math.max(0, Math.min(selectedIndex - MAX_ROWS + 1, entries.length - MAX_ROWS))
-  const visible = entries.slice(start, start + MAX_ROWS)
+  const { stdout } = useStdout()
+  const maxRows = Math.max(3, (stdout?.rows ?? 24) - CHROME_ROWS)
+
+  // Reverse for newest-on-top display
+  const displayEntries = [...entries].reverse()
+  const displaySelected = entries.length - 1 - selectedIndex
+  const displayDiffBase = diffBaseIndex !== null ? entries.length - 1 - diffBaseIndex : null
+
+  const start = Math.max(0, Math.min(displaySelected - maxRows + 1, displayEntries.length - maxRows))
+  const visible = displayEntries.slice(start, start + maxRows)
 
   if (entries.length === 0) {
     return (
@@ -88,8 +97,8 @@ export function RequestList({ entries, selectedIndex, diffBaseIndex }: RequestLi
 
       {visible.map((entry, visIdx) => {
         const absIdx = start + visIdx
-        const isSelected = absIdx === selectedIndex
-        const isDiffBase = diffBaseIndex !== null && absIdx === diffBaseIndex
+        const isSelected = absIdx === displaySelected
+        const isDiffBase = displayDiffBase !== null && absIdx === displayDiffBase
         const status = entry.completed?.status
         const duration = entry.completed?.durationMs
         const method = entry.request.method.toUpperCase()

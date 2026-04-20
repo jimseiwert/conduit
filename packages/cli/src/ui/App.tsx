@@ -129,12 +129,12 @@ export function App({ slug, url: initialUrl, port, client, version = '0.0.0-dev'
     }
 
     if (key.upArrow) {
-      setSelectedIndex((prev) => Math.max(0, prev - 1))
+      setSelectedIndex((prev) => Math.min(entries.length - 1, prev + 1))
       return
     }
 
     if (key.downArrow) {
-      setSelectedIndex((prev) => Math.min(entries.length - 1, prev + 1))
+      setSelectedIndex((prev) => Math.max(0, prev - 1))
       return
     }
 
