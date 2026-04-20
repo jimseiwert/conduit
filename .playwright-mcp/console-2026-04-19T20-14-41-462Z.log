@@ -1,0 +1,2 @@
+[      85ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ https://app.conduitrelay.com/login:0
+[   24409ms] [ERROR] Failed to load resource: the server responded with a status of 500 () @ https://app.conduitrelay.com/api/auth/sign-in/social:0

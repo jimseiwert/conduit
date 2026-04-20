@@ -1,0 +1,25 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - heading "Conduit" [level=1] [ref=e5]
+      - paragraph [ref=e6]: Webhook relay dashboard
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - button "Continue with GitHub" [ref=e9]:
+          - img [ref=e10]
+          - text: Continue with GitHub
+        - button "Continue with Google" [ref=e12]:
+          - img [ref=e13]
+          - text: Continue with Google
+      - generic [ref=e18]:
+        - separator [ref=e19]
+        - generic [ref=e20]: or
+        - separator [ref=e21]
+      - generic [ref=e22]:
+        - textbox "Email" [ref=e23]
+        - textbox "Password" [ref=e24]
+        - button "Sign in" [ref=e25]
+      - paragraph [ref=e26]:
+        - text: Don't have an account?
+        - button "Sign up" [ref=e27]
+  - alert [ref=e28]

@@ -1,0 +1,14 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - main [ref=e4]:
+      - heading "Conduit logo Conduit" [level=1] [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - img "Conduit logo" [ref=e9]
+        - link "Conduit" [ref=e10] [cursor=pointer]:
+          - /url: https://viaconduit.com
+      - paragraph [ref=e11]: Send events from your shopify store to your slack channel
+    - contentinfo [ref=e12]:
+      - link "Privacy Policy" [ref=e13] [cursor=pointer]:
+        - /url: https://drive.google.com/file/d/1B86_T74qBERb5hXVH_eStT8VQVDilyQw/view
+  - alert [ref=e14]
