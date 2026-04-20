@@ -186,28 +186,43 @@ describe('Owner WebSocket — registration', () => {
   })
 
   test('INVALID_TOKEN: wrong token returns TunnelError', async () => {
-    // Register first to create the slug in storage
-    const registerMsg: RegisterTunnel = { type: 'register', slug: SLUG_TOKEN, httpEnabled: false }
-    const { ws: ws1 } = await connectAndReceive(`${ctx.url}/${SLUG_TOKEN}`, registerMsg)
-    await closeWs(ws1)
+    // Token validation only runs when authRequired=true. Use a registrationToken so
+    // the first registration can succeed (slug gets stored), then test the wrong-token reconnect.
+    const regToken = 'invalid-token-test-secret'
+    const authCtx = await startTestServer({ authRequired: true, registrationToken: regToken })
+    try {
+      // Register first to create the slug in storage (use registrationToken to succeed)
+      const registerMsg: RegisterTunnel = {
+        type: 'register',
+        slug: SLUG_TOKEN,
+        httpEnabled: false,
+        registrationToken: regToken,
+      }
+      const { ws: ws1 } = await connectAndReceive(`${authCtx.url}/${SLUG_TOKEN}`, registerMsg)
+      await closeWs(ws1)
 
-    await new Promise((r) => setTimeout(r, 50))
+      await new Promise((r) => setTimeout(r, 50))
 
-    // Try to reconnect with a wrong token
-    const badTokenMsg: RegisterTunnel = {
-      type: 'register',
-      slug: SLUG_TOKEN,
-      token: 'this-is-not-the-right-token',
-      httpEnabled: false,
+      // Try to reconnect with a wrong slug token — auth passes (registrationToken present)
+      // but the slug token itself is invalid
+      const badTokenMsg: RegisterTunnel = {
+        type: 'register',
+        slug: SLUG_TOKEN,
+        token: 'this-is-not-the-right-token',
+        httpEnabled: false,
+        registrationToken: regToken,
+      }
+      const { ws: ws2, firstMsg } = await connectAndReceive(
+        `${authCtx.url}/${SLUG_TOKEN}`,
+        badTokenMsg,
+      )
+      await closeWs(ws2)
+
+      expect((firstMsg as TunnelError).type).toBe('error')
+      expect((firstMsg as TunnelError).code).toBe('INVALID_TOKEN')
+    } finally {
+      await authCtx.stop()
     }
-    const { ws: ws2, firstMsg } = await connectAndReceive(
-      `${ctx.url}/${SLUG_TOKEN}`,
-      badTokenMsg,
-    )
-    await closeWs(ws2)
-
-    expect((firstMsg as TunnelError).type).toBe('error')
-    expect((firstMsg as TunnelError).code).toBe('INVALID_TOKEN')
   })
 
   test('PARSE_ERROR: malformed JSON does not close the connection', async () => {
@@ -245,7 +260,7 @@ describe('Owner WebSocket — registration', () => {
   })
 
   test('registration token gate rejects missing token', async () => {
-    const ctx2 = await startTestServer({ registrationToken: 'secret-gate' })
+    const ctx2 = await startTestServer({ authRequired: true, registrationToken: 'secret-gate' })
     try {
       const registerMsg: RegisterTunnel = { type: 'register', slug: SLUG_GATED, httpEnabled: false }
       const { ws, firstMsg } = await connectAndReceive(`${ctx2.url}/${SLUG_GATED}`, registerMsg)
@@ -259,7 +274,7 @@ describe('Owner WebSocket — registration', () => {
   })
 
   test('registration token gate accepts correct token', async () => {
-    const ctx2 = await startTestServer({ registrationToken: 'secret-gate' })
+    const ctx2 = await startTestServer({ authRequired: true, registrationToken: 'secret-gate' })
     try {
       const registerMsg: RegisterTunnel = {
         type: 'register',
@@ -309,9 +324,11 @@ describe('Owner WebSocket — grace period', () => {
 
 describe('Watcher WebSocket', () => {
   let ctx: TestContext
+  // Use a registrationToken so the owner can register on the auth-required server
+  const WATCHER_REG_TOKEN = 'watcher-test-reg-token'
 
   beforeEach(async () => {
-    ctx = await startTestServer()
+    ctx = await startTestServer({ authRequired: true, registrationToken: WATCHER_REG_TOKEN })
   })
 
   afterEach(async () => {
@@ -321,8 +338,8 @@ describe('Watcher WebSocket', () => {
   test('watcher with valid token joins successfully', async () => {
     const slug = SLUG_WATCH
 
-    // Register owner first
-    const registerMsg: RegisterTunnel = { type: 'register', slug, httpEnabled: false }
+    // Register owner first (registrationToken required when authRequired=true)
+    const registerMsg: RegisterTunnel = { type: 'register', slug, httpEnabled: false, registrationToken: WATCHER_REG_TOKEN }
     const { ws: ownerWs, firstMsg } = await connectAndReceive(
       `${ctx.url}/${slug}`,
       registerMsg,
@@ -347,8 +364,8 @@ describe('Watcher WebSocket', () => {
   test('watcher without token is rejected with AUTH_REQUIRED', async () => {
     const slug = SLUG_WATCH_AUTH
 
-    // Register owner
-    const registerMsg: RegisterTunnel = { type: 'register', slug, httpEnabled: false }
+    // Register owner (registrationToken required when authRequired=true)
+    const registerMsg: RegisterTunnel = { type: 'register', slug, httpEnabled: false, registrationToken: WATCHER_REG_TOKEN }
     const { ws: ownerWs } = await connectAndReceive(`${ctx.url}/${slug}`, registerMsg)
 
     // Connect watcher without token
@@ -366,8 +383,8 @@ describe('Watcher WebSocket', () => {
   test('watcher with wrong token is rejected', async () => {
     const slug = SLUG_WATCH_WRONG
 
-    // Register owner
-    const registerMsg: RegisterTunnel = { type: 'register', slug, httpEnabled: false }
+    // Register owner (registrationToken required when authRequired=true)
+    const registerMsg: RegisterTunnel = { type: 'register', slug, httpEnabled: false, registrationToken: WATCHER_REG_TOKEN }
     const { ws: ownerWs } = await connectAndReceive(`${ctx.url}/${slug}`, registerMsg)
 
     // Connect watcher with wrong token
