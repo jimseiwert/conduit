@@ -5,6 +5,7 @@ import * as os from 'os'
 import * as WebSocket from 'ws'
 import type { RelayOutbound, IncomingRequest, RequestCompleted, RequestRecords } from '@conduit/types'
 import type { StatusBar } from './StatusBar'
+import { readUserCredentials } from './credentials'
 
 export interface RequestItem {
   id: string
@@ -64,7 +65,9 @@ export class WatcherClient {
     this.slug = cfg.slug
     if (cfg.relayUrl) this.relayUrl = cfg.relayUrl
 
-    const token = cfg.token ?? await this.secrets.get(`conduit.token.${cfg.slug}`)
+    const token = cfg.token
+      ?? await this.secrets.get(`conduit.token.${cfg.slug}`)
+      ?? readUserCredentials()?.token
     if (!token) return
 
     this.token = token
@@ -101,7 +104,7 @@ export class WatcherClient {
       }
     }
 
-    // Resolve token: home config → SecretStorage → ask
+    // Resolve token: home config → SecretStorage → CLI credentials → ask
     if (!this.token) {
       const cfg = this.readHomeConfig()
       if (cfg?.token) {
@@ -111,25 +114,30 @@ export class WatcherClient {
         if (stored) {
           this.token = stored
         } else {
-          const choice = await vscode.window.showInformationMessage(
-            `Conduit: No token found for "${this.slug}". How would you like to authenticate?`,
-            'Login with Browser',
-            'Enter Token',
-          )
-          if (choice === 'Login with Browser') {
-            await this._openBrowserLogin(relayUrl)
-            // URI handler will call handleAuthCallback → connect
-            return
-          } else if (choice === 'Enter Token') {
-            const entered = await vscode.window.showInputBox({
-              prompt: 'Paste your CONDUIT_TOKEN (from the .env file where conduit start was run)',
-              password: true,
-            })
-            if (!entered) return
-            this.token = entered
-            await this.secrets.store(`conduit.token.${this.slug}`, entered)
+          const cliToken = readUserCredentials()?.token
+          if (cliToken) {
+            this.token = cliToken
           } else {
-            return
+            const choice = await vscode.window.showInformationMessage(
+              `Conduit: No token found for "${this.slug}". How would you like to authenticate?`,
+              'Login with Browser',
+              'Enter Token',
+            )
+            if (choice === 'Login with Browser') {
+              await this._openBrowserLogin(relayUrl)
+              // URI handler will call handleAuthCallback → connect
+              return
+            } else if (choice === 'Enter Token') {
+              const entered = await vscode.window.showInputBox({
+                prompt: 'Paste your CONDUIT_TOKEN (from the .env file where conduit start was run)',
+                password: true,
+              })
+              if (!entered) return
+              this.token = entered
+              await this.secrets.store(`conduit.token.${this.slug}`, entered)
+            } else {
+              return
+            }
           }
         }
       }
@@ -196,9 +204,11 @@ export class WatcherClient {
 
   // ─── Private helpers ─────────────────────────────────────────────────────────
 
-  private async _openBrowserLogin(relayUrl: string): Promise<void> {
-    const httpBase = relayUrl.replace(/^wss?:\/\//, (m) => (m.startsWith('wss') ? 'https://' : 'http://'))
-    const loginUrl = `${httpBase}/auth/login?clientType=vscode`
+  private async _openBrowserLogin(_relayUrl: string): Promise<void> {
+    const vsConfig = vscode.workspace.getConfiguration('conduit')
+    const dashboardUrl = (vsConfig.get<string>('dashboardUrl') ?? 'https://app.conduitrelay.com').replace(/\/$/, '')
+    const callbackUri = 'vscode://jimseiwert.conduit-relay/auth-callback'
+    const loginUrl = `${dashboardUrl}/cli-auth?callback=${encodeURIComponent(callbackUri)}`
     await vscode.env.openExternal(vscode.Uri.parse(loginUrl))
     vscode.window.showInformationMessage('Conduit: Complete login in your browser — you will be connected automatically.')
   }
@@ -345,7 +355,21 @@ export class WatcherClient {
       }
 
       case 'error': {
-        vscode.window.showErrorMessage(`Conduit relay error [${parsed.code}]: ${parsed.message}`)
+        if (parsed.code === 'AUTH_REQUIRED' || parsed.code === 'INVALID_TOKEN') {
+          // Stop reconnecting — user needs to authenticate first
+          this.intentionalDisconnect = true
+          vscode.window.showErrorMessage(
+            'Conduit: Not logged in. Run `conduit login` in your terminal, then click Connect.',
+            'Connect',
+          ).then((choice) => {
+            if (choice === 'Connect') {
+              this.intentionalDisconnect = false
+              void this.connect()
+            }
+          })
+        } else {
+          vscode.window.showErrorMessage(`Conduit relay error [${parsed.code}]: ${parsed.message}`)
+        }
         break
       }
 
