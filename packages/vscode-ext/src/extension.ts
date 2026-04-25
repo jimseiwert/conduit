@@ -36,7 +36,9 @@ export async function activate(context: vscode.ExtensionContext) {
       watcherClient = new WatcherClient(statusBar, context.secrets)
       provider.setClient(watcherClient)
       hookClient(watcherClient)
-      void watcherClient.tryAutoConnect()
+      if (vscode.workspace.getConfiguration('conduit').get('autoConnect')) {
+        void watcherClient.tryAutoConnect()
+      }
     }
     return client
   }

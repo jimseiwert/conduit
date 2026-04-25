@@ -12,6 +12,7 @@ import type {
 } from '@conduit/types'
 import type { StatusBar } from './StatusBar'
 import type { RequestItem } from './WatcherClient'
+import { readUserCredentials } from './credentials'
 
 const MAX_REQUESTS = 500
 const MAX_RECONNECT_DELAY_MS = 30_000
@@ -185,6 +186,7 @@ export class OwnerClient {
   private ws: WebSocket.WebSocket | null = null
   private slug: string | null = null
   private token: string | null = null
+  private userToken: string | null = null
   private relayUrl: string | null = null
   private intentionalDisconnect = false
   private reconnectDelay = 1000
@@ -228,6 +230,9 @@ export class OwnerClient {
     this.token = homeEntry.token
       ?? await this.secrets.get(`conduit.token.${homeEntry.slug}`)
       ?? null
+
+    // User credentials from `conduit login` (stored in ~/.conduit/credentials.json)
+    this.userToken = readUserCredentials()?.token ?? null
 
     this._openSocket(relayUrl)
   }
@@ -274,6 +279,7 @@ export class OwnerClient {
         httpEnabled: false,
       }
       if (this.token) registerMsg['token'] = this.token
+      if (this.userToken) registerMsg['userToken'] = this.userToken
       const registrationToken = vscode.workspace.getConfiguration('conduit').get<string>('registrationToken') || process.env['CONDUIT_REGISTRATION_TOKEN']
       if (registrationToken) registerMsg['registrationToken'] = registrationToken
       ws.send(JSON.stringify(registerMsg))
@@ -339,6 +345,18 @@ export class OwnerClient {
           this.ws?.close()
           this.ws = null
           this.onFallbackToWatch?.()
+        } else if (msg.code === 'AUTH_REQUIRED') {
+          // Not logged in — stop reconnecting and prompt user to run conduit login
+          this.intentionalDisconnect = true
+          vscode.window.showErrorMessage(
+            'Conduit: Not logged in. Run `conduit login` in your terminal, then click Connect.',
+            'Connect',
+          ).then((choice) => {
+            if (choice === 'Connect') {
+              this.intentionalDisconnect = false
+              void this.connect()
+            }
+          })
         } else if (msg.code === 'INVALID_TOKEN') {
           // Relay storage was wiped — clear saved token so next reconnect re-registers fresh
           this.token = null

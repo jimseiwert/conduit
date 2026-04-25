@@ -29,15 +29,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing callback URL' }, { status: 400 })
   }
 
-  // Verify callback is a localhost URL to prevent open redirect
+  // Verify callback is a localhost or registered VS Code extension URI to prevent open redirect
   let callbackUrl: URL
   try {
     callbackUrl = new URL(callback)
   } catch {
     return NextResponse.json({ error: 'Invalid callback URL' }, { status: 400 })
   }
-  if (callbackUrl.hostname !== 'localhost' && callbackUrl.hostname !== '127.0.0.1') {
-    return NextResponse.json({ error: 'Callback must be localhost' }, { status: 400 })
+  const isLocalhost = callbackUrl.hostname === 'localhost' || callbackUrl.hostname === '127.0.0.1'
+  const isVscodeExtension = callbackUrl.protocol === 'vscode:' && callbackUrl.hostname === 'jimseiwert.conduit-relay'
+  if (!isLocalhost && !isVscodeExtension) {
+    return NextResponse.json({ error: 'Callback must be localhost or the Conduit VS Code extension URI' }, { status: 400 })
   }
 
   const token = jwt.sign(

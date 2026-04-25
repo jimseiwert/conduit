@@ -63,7 +63,7 @@
         },
         "conduit.autoConnect": {
           "type": "boolean",
-          "default": true,
+          "default": false,
           "description": "Auto-connect on workspace open"
         },
         "conduit.registrationToken": {
