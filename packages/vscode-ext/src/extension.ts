@@ -22,10 +22,30 @@ export async function activate(context: vscode.ExtensionContext) {
   }
 
   // Chains both tree refresh and inspector panel update onto client.onUpdate.
+  let autoConnectPromptShown = false
   function hookClient(client: IConduitClient): void {
     client.onUpdate = () => {
       provider.refresh()
       RequestInspectorPanel.notifyUpdate(client)
+
+      // One-time offer to enable auto-connect after first manual connection
+      if (
+        !autoConnectPromptShown &&
+        !context.workspaceState.get<boolean>('autoConnectPrompted') &&
+        !vscode.workspace.getConfiguration('conduit').get<boolean>('autoConnect')
+      ) {
+        autoConnectPromptShown = true
+        void context.workspaceState.update('autoConnectPrompted', true)
+        vscode.window.showInformationMessage(
+          'Conduit connected! Enable auto-connect so VS Code reconnects automatically on workspace open?',
+          'Enable',
+          'Not now',
+        ).then((choice) => {
+          if (choice === 'Enable') {
+            void vscode.workspace.getConfiguration('conduit').update('autoConnect', true, vscode.ConfigurationTarget.Workspace)
+          }
+        })
+      }
     }
   }
 
