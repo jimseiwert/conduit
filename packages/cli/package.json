@@ -13,22 +13,22 @@
     "test": "bun test"
   },
   "dependencies": {
-    "ink": "^5.1.0",
-    "react": "^18.3.1",
-    "@types/react": "^18.3.12",
-    "jsondiffpatch": "^0.7.2",
-    "jsonwebtoken": "^9.0.2",
-    "ws": "^8.18.0",
-    "dotenv": "^16.4.7",
-    "dotenv-expand": "^11.0.6",
+    "ink": "^7.0.1",
+    "react": "^19.2.5",
+    "@types/react": "^19.2.14",
+    "jsondiffpatch": "^0.7.3",
+    "jsonwebtoken": "^9.0.3",
+    "ws": "^8.20.0",
+    "dotenv": "^17.4.2",
+    "dotenv-expand": "^13.0.0",
     "@conduit/types": "*"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "@types/jsonwebtoken": "^9.0.9",
-    "@types/ws": "^8.5.14",
+    "@types/node": "^25.6.0",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/ws": "^8.18.1",
     "ink-testing-library": "^4.0.0",
-    "react-devtools-core": "^6.0.1",
-    "typescript": "^5.4.5"
+    "react-devtools-core": "^7.0.1",
+    "typescript": "^6.0.3"
   }
 }
